@@ -1,0 +1,100 @@
+{
+  "countries": [
+    {
+      "name": "United States",
+      "code": "US",
+      "states": [
+        {
+          "name": "California",
+          "code": "CA",
+          "cities": [
+            { "name": "Los Angeles", "pincode": "90001" },
+            { "name": "San Francisco", "pincode": "94102" },
+            { "name": "San Diego", "pincode": "92101" }
+          ]
+        },
+        {
+          "name": "New York",
+          "code": "NY",
+          "cities": [
+            { "name": "New York City", "pincode": "10001" },
+            { "name": "Buffalo", "pincode": "14201" }
+          ]
+        },
+        {
+          "name": "Texas",
+          "code": "TX",
+          "cities": [
+            { "name": "Houston", "pincode": "77001" },
+            { "name": "Dallas", "pincode": "75201" },
+            { "name": "Austin", "pincode": "73301" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "United Kingdom",
+      "code": "UK",
+      "states": [
+        {
+          "name": "England",
+          "code": "ENG",
+          "cities": [
+            { "name": "London", "pincode": "EC1A" },
+            { "name": "Manchester", "pincode": "M1" },
+            { "name": "Birmingham", "pincode": "B1" }
+          ]
+        },
+        {
+          "name": "Scotland",
+          "code": "SCT",
+          "cities": [
+            { "name": "Edinburgh", "pincode": "EH1" },
+            { "name": "Glasgow", "pincode": "G1" }
+          ]
+        },
+        {
+          "name": "Wales",
+          "code": "WLS",
+          "cities": [
+            { "name": "Cardiff", "pincode": "CF10" },
+            { "name": "Swansea", "pincode": "SA1" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Europe",
+      "code": "EU",
+      "states": [
+        {
+          "name": "Germany",
+          "code": "DE",
+          "cities": [
+            { "name": "Berlin", "pincode": "10115" },
+            { "name": "Munich", "pincode": "80331" },
+            { "name": "Hamburg", "pincode": "20095" }
+          ]
+        },
+        {
+          "name": "France",
+          "code": "FR",
+          "cities": [
+            { "name": "Paris", "pincode": "75001" },
+            { "name": "Lyon", "pincode": "69001" },
+            { "name": "Marseille", "pincode": "13001" }
+          ]
+        },
+        {
+          "name": "Spain",
+          "code": "ES",
+          "cities": [
+            { "name": "Madrid", "pincode": "28001" },
+            { "name": "Barcelona", "pincode": "08001" },
+            { "name": "Valencia", "pincode": "46001" }
+          ]
+        }
+      ]
+    }
+  ]
+}

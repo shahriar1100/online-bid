@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1759421180944,
+      "tag": "0000_wakeful_mysterio",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1759593149194,
+      "tag": "0001_sharp_mulholland_black",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1760461400940,
+      "tag": "0002_last_kinsey_walden",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1767418895525,
+      "tag": "0003_dizzy_wallflower",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1767629203629,
+      "tag": "0004_awesome_harry_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1768154277168,
+      "tag": "0005_petite_radioactive_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1781432693633,
+      "tag": "0006_awesome_reavers",
+      "breakpoints": true
+    }
+  ]
+}

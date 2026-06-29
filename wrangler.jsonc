@@ -1,0 +1,62 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "ibids-app-workers",
+	// "name": "ibids-app-pages",
+	"compatibility_date": "2025-08-12",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"main": "src/worker.ts",	
+	// "pages_build_output_dir": ".vercel/output/static",	
+	"observability": {
+		"enabled": true
+	},
+	// NEW: DURABLE OBJECTS CONFIGURATION
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "AUCTION_ROOM",
+				"class_name": "AuctionRoom"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v4",
+			"new_sqlite_classes": [
+				"AuctionRoom"
+			]
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ibids-db",
+			"database_id": "6df19ddc-bdda-47ed-a840-3a8621bb0138",
+			"migrations_dir": "drizzle/migrations"
+		},
+		{
+			"binding": "ibids_db",
+			"database_name": "ibids-db",
+			"database_id": "6df19ddc-bdda-47ed-a840-3a8621bb0138",
+			"remote": true
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "R2_BUCKET",
+			"bucket_name": "auction-hive-assets",
+			"preview_bucket_name": "auction-hive-assets"
+		}
+	],
+	"vars": {
+		"FRONTEND_BASE_URL": "https://ibids365.com",
+		"JWT_SECRET": "12345678",
+		"STRIPE_SECRET_KEY": "mk_1SZwFQBNfjVS4iIyq0hsi610",
+		"STRIPE_WEBHOOK_SECRET": "whsec_fJJcTYwNdiPoCHRD7wdSm42o9AzIKnAu",
+	}
+}
