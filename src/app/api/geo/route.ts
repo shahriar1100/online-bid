@@ -9,6 +9,19 @@ interface GeoData {
 }
 
 export async function GET() {
+  // Development mode
+  if (process.env.NODE_ENV === "development") {
+    return NextResponse.json(
+      {
+        success: true,
+        country_code: "BD",
+        region: "Dhaka",
+        city: "Dhaka",
+      },
+      { status: 200 }
+    );
+  }
+
   try {
     const res = await fetch("https://ipapi.co/json/", {
       headers: {
@@ -24,7 +37,7 @@ export async function GET() {
       );
     }
 
-    const data = await res.json() as GeoData;
+    const data: GeoData = await res.json();
 
     return NextResponse.json(
       {
@@ -35,7 +48,9 @@ export async function GET() {
       },
       { status: 200 }
     );
-  } catch {
+  } catch (error) {
+    console.error("Geo API Error:", error);
+
     return NextResponse.json(
       { success: false, error: "Geo service unreachable" },
       { status: 500 }

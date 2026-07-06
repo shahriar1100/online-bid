@@ -50,6 +50,13 @@
       "when": 1781432693633,
       "tag": "0006_awesome_reavers",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1782924754077,
+      "tag": "0007_woozy_sinister_six",
+      "breakpoints": true
     }
   ]
 }

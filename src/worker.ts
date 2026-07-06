@@ -1,10 +1,10 @@
-import { insertUser, findUserByEmail, verifyUser,phoneExists } from "./db/model/user";
+import { insertUser, findUserByEmail, verifyUser, phoneExists } from "./db/model/user";
 import { insertRealEstate, type InsertRealStateInput, } from "./db/model/realstate";
 import { insertAutomobile, type InsertAutomobileInput } from "./db/model/automobile";
 import { insertBusiness, type InsertBusinessInput } from "./db/model/business";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { Stripe } from "stripe";
-import { real_estate_listings, users, automobile_listings, business_listings, bids, auction_sessions, auction_payments, } from "./db/schema";
+import { real_estate_listings, users, automobile_listings, business_listings, bids, auction_sessions, auction_payments } from "./db/schema";
 import { drizzle } from "drizzle-orm/d1";
 import { signJWT, verifyJWT, verifyStoredPassword, hashPasswordForStore } from "./util/jwt";
 import { sendEmail } from "./util/smtp";
@@ -12,6 +12,8 @@ import { ENV } from "./util/env";
 import { newUserRegistrationAdminEmail, newListingNotificationEmail } from "./util/emailTemplates";
 import { calculatePlatformFee } from "./util/calculatePlatformFee";
 export { AuctionRoom } from "./util/durable";
+import { listingQuestions } from "./db/model/listing-question";
+import { listingAnswers } from "./db/model/listing-answer";
 
 export interface Env {
   DB: D1Database;
@@ -486,7 +488,7 @@ const worker = {
         // Send admin notification email (fire-and-forget — does not block signup)
         try {
           console.log('admin email', ENV.ADMIN_EMAIL);
-          
+
           const adminHtml = newUserRegistrationAdminEmail({
             name: body.name,
             email: body.email,
@@ -603,7 +605,7 @@ const worker = {
         });
       } catch (error) {
         console.log('worker error', error);
-        
+
         const msg = error instanceof Error ? error.message : "Internal server error";
         return new Response(JSON.stringify({ error: msg }), {
           status: 500,
@@ -882,29 +884,29 @@ const worker = {
       }
     }
 
-  // ========================
-  // CONTACT FORM
-  // ========================
+    // ========================
+    // CONTACT FORM
+    // ========================
     if (url.pathname === "/contact" && req.method === "POST") {
-  let body: { name: string; email: string; subject: string; message: string };
-  try {
-    body = await req.json();
-  } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: getCorsHeaders(),
-    });
-  }
+      let body: { name: string; email: string; subject: string; message: string };
+      try {
+        body = await req.json();
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+          status: 400,
+          headers: getCorsHeaders(),
+        });
+      }
 
-  if (!body.name || !body.email || !body.subject || !body.message) {
-    return new Response(JSON.stringify({ error: "Missing fields" }), {
-      status: 400,
-      headers: getCorsHeaders(),
-    });
-  }
+      if (!body.name || !body.email || !body.subject || !body.message) {
+        return new Response(JSON.stringify({ error: "Missing fields" }), {
+          status: 400,
+          headers: getCorsHeaders(),
+        });
+      }
 
-  try {
-    const emailHtml = `
+      try {
+        const emailHtml = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -947,22 +949,22 @@ const worker = {
       </html>
     `;
 
-    await sendEmail(
-      "developers@ibids365.com",
-      `Support Ticket: ${body.subject}`,
-      emailHtml
-    );
+        await sendEmail(
+          "developers@ibids365.com",
+          `Support Ticket: ${body.subject}`,
+          emailHtml
+        );
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: getCorsHeaders(),
-    });
-  } catch (err) {
-    console.error("Contact email failed:", err);
-    return new Response(JSON.stringify({ error: "Failed to send email" }), {
-      status: 500,
-      headers: getCorsHeaders(),
-    });
-  }
+        return new Response(JSON.stringify({ success: true }), {
+          headers: getCorsHeaders(),
+        });
+      } catch (err) {
+        console.error("Contact email failed:", err);
+        return new Response(JSON.stringify({ error: "Failed to send email" }), {
+          status: 500,
+          headers: getCorsHeaders(),
+        });
+      }
     }
 
     // ========================
@@ -1077,6 +1079,149 @@ const worker = {
       return featured_until > now;
     }
 
+    if (url.pathname === "/api/questions" && req.method === "GET") {
+      try {
+        const listingId = Number(url.searchParams.get("listingId"));
+        const listingType = url.searchParams.get("listingType");
+
+        if (!listingId || !listingType) {
+          return Response.json(
+            {
+              success: false,
+              message: "listingId and listingType are required",
+            },
+            {
+              status: 400,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
+        const db = drizzle(env.DB);
+
+        const questions = await db
+          .select()
+          .from(listingQuestions)
+          .where(
+            and(
+              eq(listingQuestions.listingId, listingId),
+              eq(listingQuestions.listingType, listingType as any),
+              eq(listingQuestions.isVisible, true)
+            )
+          )
+          .orderBy(desc(listingQuestions.createdAt));
+
+        return Response.json(
+          {
+            success: true,
+            questions,
+          },
+          {
+            headers: getCorsHeaders(),
+          }
+        );
+      } catch (error) {
+        console.error("GET QUESTIONS ERROR:", error);
+
+        return Response.json(
+          {
+            success: false,
+            message: "Internal server error",
+          },
+          {
+            status: 500,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
+    }
+
+    if (url.pathname === "/api/questions" && req.method === "POST") {
+      try {
+        const authUser = await authenticateRequest(req, env);
+
+        if (!authUser) {
+          return Response.json(
+            {
+              success: false,
+              message: "Unauthorized",
+            },
+            {
+              status: 401,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
+        const body = await req.json() as {
+          listingId: number;
+          listingType: "realestate" | "automobile" | "business";
+          sellerId: number;
+          question: string;
+        };
+
+        if (
+          !body.listingId ||
+          !body.listingType ||
+          !body.question
+        ) {
+          return Response.json(
+            {
+              success: false,
+              message: "Missing required fields",
+            },
+            {
+              status: 400,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
+        const db = drizzle(env.DB);
+
+        console.log("BODY:", body);
+console.log("AUTH USER:", authUser);
+
+        const result = await db
+          .insert(listingQuestions)
+          .values({
+            listingId: body.listingId,
+            listingType: body.listingType,
+            userId: authUser.userId,
+            question: body.question,
+            status: "approved",
+          })
+          .returning();
+
+        return Response.json(
+          {
+            success: true,
+            question: result[0],
+          },
+          {
+            headers: getCorsHeaders(),
+          }
+        );
+      } catch (error) {
+  console.error("POST QUESTION ERROR:", error);
+
+  if (error instanceof Error) {
+    console.error(error.stack);
+  }
+
+  return Response.json(
+    {
+      success: false,
+      message: String(error),
+    },
+    {
+      status: 500,
+      headers: getCorsHeaders(),
+    }
+  );
+}
+    }
+
     /* --------- UPLOAD ------------ */
     if (url.pathname === "/api/uploads") {
       const key = url.pathname.slice(1);
@@ -1116,8 +1261,14 @@ const worker = {
           const key = `uploads/${Date.now()}-${fileName}`;
 
           await env.R2_BUCKET.put(key, fileStream!, {
-            httpMetadata: { contentType: fileType }
+            httpMetadata: { contentType: fileType },
           });
+          const check = await env.R2_BUCKET.get(key);
+
+          console.log("CHECK AFTER PUT:", !!check);
+
+
+          console.log("UPLOAD SUCCESS:", key);
           console.log(`File ${fileName} uploaded as ${key}`);
           // Public URL (you need R2 public bucket enabled)
           const publicUrl = `${ENV.R2_PREVIEW_BUCKET_URL}/${key}`;
@@ -1896,11 +2047,17 @@ const worker = {
 
     // Add GET endpoint for business
     if (url.pathname === "/api/business" && req.method === "GET") {
+      console.log("========== BUSINESS GET ROUTE ==========");
+      console.log("Request URL:", req.url);
       try {
         const userId = url.searchParams.get("userId");
         const listingId = url.searchParams.get("listingId");
 
+        console.log("listingId:", listingId);
+        console.log("userId:", userId);
+
         const db = drizzle(env.DB);
+        console.log("DB Binding:", env.DB);
 
         if (listingId) {
           // Fetch and return single listing by ID
@@ -1994,6 +2151,8 @@ const worker = {
               .orderBy(desc(business_listings.created_at));
           }
 
+          console.log("Raw listings from DB:", listings);
+
           const transformedListings = listings.map(listing => ({
             id: listing.id,
             user_id: listing.user_id,
@@ -2045,6 +2204,9 @@ const worker = {
             featuredUntil: listing.featured_until,
             createdAt: listing.created_at,
           }));
+
+          console.log("Transformed listings:", transformedListings);
+          console.log("Returning", transformedListings.length, "business listings");
 
           return new Response(
             JSON.stringify({ success: true, listings: transformedListings }),

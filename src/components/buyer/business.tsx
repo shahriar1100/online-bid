@@ -1,17 +1,23 @@
-"use client"
+"use client";
 
-import { useState, useMemo, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "src/components/ui/select"
-import { Button } from "src/components/ui/button"
-import Image from "next/image"
-import { categorySubcategories } from "src/app/data"
-import Header from "src/components/header"
-import Footer from "src/components/footer"
-import sold from "src/app/assets/images/real-state/sold.png"
-import { Crown } from "lucide-react"
-import { useRouter } from "next/navigation"
-import Loader from "../loader"
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "src/components/ui/select";
+import { Button } from "src/components/ui/button";
+import Image from "next/image";
+import { categorySubcategories } from "src/app/data";
+import Header from "src/components/header";
+import Footer from "src/components/footer";
+import sold from "src/app/assets/images/real-state/sold.png";
+import { Crown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Loader from "../loader";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,52 +25,52 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "../ui/breadcrumb"
-import { usePathname } from "next/navigation"
-import Link from "next/link"
-import { formatAmount, getCachedHighestBid } from "src/util/bid"
-import { parseStorageDate } from "src/lib/date-utils"
-import {useAppContext} from "../../app/context";
+} from "../ui/breadcrumb";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
+import { formatAmount, getCachedHighestBid } from "src/util/bid";
+import { parseStorageDate } from "src/lib/date-utils";
+import { useAppContext } from "../../app/context";
 
-type ListingStatus = "Upcoming" | "Live" | "End"
+type ListingStatus = "Upcoming" | "Live" | "End";
 
 interface Listing {
-  id: number
-  name: string
-  category: string
-  subCategory: string
-  status: ListingStatus
-  time: string
-  duration: string
-  price?: string
-  description?: string
-  media?: string[]
-  isFeatured?: boolean
-  featuredUntil?: number
+  id: number;
+  name: string;
+  category: string;
+  subCategory: string;
+  status: ListingStatus;
+  time: string;
+  duration: string;
+  price?: string;
+  description?: string;
+  media?: string[];
+  isFeatured?: boolean;
+  featuredUntil?: number;
 
   // Business specific fields
-  businessAddress?: string
-  businessCity?: string
-  businessState?: string
-  businessCountry?: string
-  revenue?: string
-  profit?: string
-  franchise?: string
-  employes?: string
+  businessAddress?: string;
+  businessCity?: string;
+  businessState?: string;
+  businessCountry?: string;
+  revenue?: string;
+  profit?: string;
+  franchise?: string;
+  employes?: string;
 }
 
 interface ApiResponse {
-  success: boolean
-  listings?: Listing[]
-  error?: string
+  success: boolean;
+  listings?: Listing[];
+  error?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getValidImage = (media: any[] | undefined): string | null => {
-  console.log('Media array:', media);
+  console.log("Media array:", media);
 
   if (!media || !Array.isArray(media) || media.length === 0) {
-    console.log('Media is empty or not an array');
+    console.log("Media is empty or not an array");
     return null;
   }
 
@@ -75,13 +81,13 @@ const getValidImage = (media: any[] | undefined): string | null => {
   for (const item of media) {
     if (!item) continue;
 
-    if (typeof item === 'string' && item.trim && item.trim() !== '') {
+    if (typeof item === "string" && item.trim && item.trim() !== "") {
       return item;
     }
 
-    if (typeof item === 'object') {
+    if (typeof item === "object") {
       const url = item.url || item.src || item.path;
-      if (url && typeof url === 'string' && url.trim() !== '') {
+      if (url && typeof url === "string" && url.trim() !== "") {
         return url;
       }
     }
@@ -92,7 +98,7 @@ const getValidImage = (media: any[] | undefined): string | null => {
 
 function getAuctionStatusAndCountdown(duration: string) {
   try {
-    const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
+    const [startStr, endStr] = duration.split(" to ").map((s) => s.trim());
     const startDate = parseStorageDate(startStr) || new Date();
     const endDate = parseStorageDate(endStr) || new Date();
 
@@ -116,7 +122,12 @@ function getAuctionStatusAndCountdown(duration: string) {
 
     return { status, timeLeft, startDate, endDate };
   } catch {
-    return { status: "Upcoming" as const, timeLeft: null, startDate: new Date(), endDate: new Date() };
+    return {
+      status: "Upcoming" as const,
+      timeLeft: null,
+      startDate: new Date(),
+      endDate: new Date(),
+    };
   }
 }
 
@@ -135,9 +146,9 @@ function formatTimeLeft(ms: number): string {
 
   // Less than 24 hours → show HH:MM:SS countdown
   return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
-
 
 const getPriceColorClass = (status: ListingStatus): string => {
   switch (status) {
@@ -152,15 +163,14 @@ const getPriceColorClass = (status: ListingStatus): string => {
   }
 };
 
-
 const Business = () => {
   const pathname = usePathname();
-  const searchParams = useSearchParams()
-  const categoryFromUrl = searchParams.get("category") || "Business"
-  const [selectedSubCategory, setSelectedSubCategory] = useState("All")
-  const [listings, setListings] = useState<Listing[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const searchParams = useSearchParams();
+  const categoryFromUrl = searchParams.get("category") || "Business";
+  const [selectedSubCategory, setSelectedSubCategory] = useState("All");
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const [countdowns, setCountdowns] = useState<Record<number, string>>({});
   const rawCategory = searchParams.get("category");
@@ -181,159 +191,201 @@ const Business = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setListings(prevListings => {
-        return prevListings.map(listing => {
-          const { status } = getAuctionStatusAndCountdown(listing.duration || "")
-          return { ...listing, status } // update status in listings
-        })
-      })
+      setListings((prevListings) => {
+        return prevListings.map((listing) => {
+          const { status } = getAuctionStatusAndCountdown(
+            listing.duration || "",
+          );
+          return { ...listing, status }; // update status in listings
+        });
+      });
 
-      setCountdowns(prev => {
-        const updated: Record<number, string> = {}
+      setCountdowns((prev) => {
+        const updated: Record<number, string> = {};
 
-        listings.forEach(listing => {
-          const { status, timeLeft } = getAuctionStatusAndCountdown(listing.duration || "")
+        listings.forEach((listing) => {
+          const { status, timeLeft } = getAuctionStatusAndCountdown(
+            listing.duration || "",
+          );
           if (status === "Live" && timeLeft) {
-            updated[listing.id] = timeLeft
+            updated[listing.id] = timeLeft;
           }
-        })
+        });
 
-        return { ...prev, ...updated }
-      })
-    }, 1000)
+        return { ...prev, ...updated };
+      });
+    }, 1000);
 
-    return () => clearInterval(interval)
-  }, [listings])
-
+    return () => clearInterval(interval);
+  }, [listings]);
 
   // Fetch listings from worker
   useEffect(() => {
     const fetchListings = async () => {
       try {
-        setLoading(true)
-        setError(null)
+        setLoading(true);
+        setError(null);
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/business`,
           {
-            method: 'GET',
+            method: "GET",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
-          }
-        )
+          },
+        );
 
-        const data: ApiResponse = await response.json()
+        const data: ApiResponse = await response.json();
 
-        console.log('Business API Response:', data)
+        console.log("Business API Response:", data);
 
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch listings')
+          throw new Error(data.error || "Failed to fetch listings");
         }
 
-        const allListings = (data.listings || [])
-
+        const allListings = data.listings || [];
+        console.log("App State:", state);
+        console.log("All Listings:", allListings);
         /* filter items if country, state and city present in app context */
         const filteredListings = allListings.filter((item) => {
           const selectedCountry = state.selectedCountry;
           const selectedState = state.selectedState;
           const selectedCity = state.selectedCity;
 
-          if (selectedCountry && item.businessCountry !== selectedCountry.split("|")[1]) return false;
-          if (selectedState && item.businessState !== selectedState.split("|")[1]) return false;
+          console.log({
+            dbCountry: item.businessCountry,
+            selectedCountry: state.selectedCountry,
+            dbState: item.businessState,
+            selectedState: state.selectedState,
+            dbCity: item.businessCity,
+            selectedCity: state.selectedCity,
+          });
+
+          if (
+            selectedCountry &&
+            item.businessCountry !== selectedCountry.split("|")[1]
+          )
+            return false;
+          if (
+            selectedState &&
+            item.businessState !== selectedState.split("|")[1]
+          )
+            return false;
           if (selectedCity && item.businessCity !== selectedCity) return false;
           return true;
         });
 
-        const sortedListings = filteredListings.sort((a: Listing, b: Listing) => {
-          const statusOrder = { 'Live': 0, 'Upcoming': 1, 'End': 2 }
-          const aOrder = statusOrder[a.status] ?? 3
-          const bOrder = statusOrder[b.status] ?? 3
+        const sortedListings = filteredListings.sort(
+          (a: Listing, b: Listing) => {
+            const statusOrder = { Live: 0, Upcoming: 1, End: 2 };
+            const aOrder = statusOrder[a.status] ?? 3;
+            const bOrder = statusOrder[b.status] ?? 3;
 
-          if (aOrder !== bOrder) return aOrder - bOrder
+            if (aOrder !== bOrder) return aOrder - bOrder;
 
-          if (a.isFeatured && !b.isFeatured) return -1
-          if (!a.isFeatured && b.isFeatured) return 1
+            if (a.isFeatured && !b.isFeatured) return -1;
+            if (!a.isFeatured && b.isFeatured) return 1;
 
-          return 0
-        })
+            return 0;
+          },
+        );
 
-        setListings(sortedListings)
+        setListings(sortedListings);
 
-        console.log(`Found ${sortedListings.length} business listings`)
-
+        console.log(`Found ${sortedListings.length} business listings`);
       } catch (err) {
-        console.error('Error fetching business listings:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load listings')
+        console.error("Error fetching business listings:", err);
+        setError(
+          err instanceof Error ? err.message : "Failed to load listings",
+        );
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchListings()
-  }, [])
+    fetchListings();
+  }, []);
 
   /* filter by country, state and city */
   useEffect(() => {
     const selectedCountry = state.selectedCountry;
     const selectedState = state.selectedState;
     const selectedCity = state.selectedCity;
-    console.log("Filtering automobile listings for:", selectedCountry, selectedState, selectedCity);
-    setListings(prevListings => prevListings.filter((item) => {
-      if (selectedCountry && item.businessCountry !== selectedCountry.split("|")[1]) return false;
-      if (selectedState && item.businessState !== selectedState.split("|")[1]) return false;
-      if (selectedCity && item.businessCity !== selectedCity) return false;
-      return true;
-    }));
+    console.log(
+      "Filtering automobile listings for:",
+      selectedCountry,
+      selectedState,
+      selectedCity,
+    );
+    setListings((prevListings) =>
+      prevListings.filter((item) => {
+        if (
+          selectedCountry &&
+          item.businessCountry !== selectedCountry.split("|")[1]
+        )
+          return false;
+        if (selectedState && item.businessState !== selectedState.split("|")[1])
+          return false;
+        if (selectedCity && item.businessCity !== selectedCity) return false;
+        return true;
+      }),
+    );
   }, [state.selectedCountry, state.selectedState, state.selectedCity]);
 
   const availableSubCategories = useMemo(() => {
-    return categoryFromUrl ? categorySubcategories[categoryFromUrl as keyof typeof categorySubcategories] || [] : []
-  }, [categoryFromUrl])
+    return categoryFromUrl
+      ? categorySubcategories[
+          categoryFromUrl as keyof typeof categorySubcategories
+        ] || []
+      : [];
+  }, [categoryFromUrl]);
 
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
-      const matchesSubCategory = selectedSubCategory === "All" || listing.subCategory === selectedSubCategory
-      return matchesSubCategory
-    })
-  }, [listings, selectedSubCategory])
+      const matchesSubCategory =
+        selectedSubCategory === "All" ||
+        listing.subCategory === selectedSubCategory;
+      return matchesSubCategory;
+    });
+  }, [listings, selectedSubCategory]);
 
   useEffect(() => {
-    setSelectedSubCategory("All")
-  }, [categoryFromUrl])
+    setSelectedSubCategory("All");
+  }, [categoryFromUrl]);
 
   const getButtonStyle = (listing: Listing) => {
-    const currentStatus = listing.status
+    const currentStatus = listing.status;
 
     if (currentStatus === "End") {
       return {
         text: "Bid Expired",
         className: "btn-expired",
-      }
+      };
     }
 
     switch (currentStatus) {
       case "Upcoming":
-        return { text: "Bidding Soon", className: "btn-default" }
+        return { text: "Bidding Soon", className: "btn-default" };
       case "Live":
-        return { text: "Place Bid", className: "btn-live" }
+        return { text: "Place Bid", className: "btn-live" };
       default:
-        return { text: "Place Bid", className: "btn-default" }
+        return { text: "Place Bid", className: "btn-default" };
     }
-  }
+  };
 
   const getStatusBadge = (status: ListingStatus) => {
     switch (status) {
       case "Upcoming":
-        return { text: "Upcoming", className: "badge-container default" }
+        return { text: "Upcoming", className: "badge-container default" };
       case "Live":
-        return { text: "Live", className: "badge-container live" }
+        return { text: "Live", className: "badge-container live" };
       case "End":
-        return { text: "End", className: "badge-container end" }
+        return { text: "End", className: "badge-container end" };
       default:
-        return { text: "Upcoming", className: "badge-container default" }
+        return { text: "Upcoming", className: "badge-container default" };
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -348,7 +400,7 @@ const Business = () => {
         </div>
         <Footer />
       </>
-    )
+    );
   }
 
   if (error) {
@@ -364,16 +416,16 @@ const Business = () => {
         </div>
         <Footer />
       </>
-    )
+    );
   }
 
   const handleCardClick = (l: Listing) => {
     try {
       sessionStorage.setItem(`biz_listing_${l.id}`, JSON.stringify(l));
-    } catch { }
+    } catch {}
 
     router.push(`/buyer/business/${l.id}`);
-  }
+  };
 
   return (
     <>
@@ -409,7 +461,10 @@ const Business = () => {
               </BreadcrumbList>
             </Breadcrumb>
 
-            <Select value={selectedSubCategory} onValueChange={setSelectedSubCategory}>
+            <Select
+              value={selectedSubCategory}
+              onValueChange={setSelectedSubCategory}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="All Subcategories" />
               </SelectTrigger>
@@ -428,9 +483,9 @@ const Business = () => {
 
           <div className="desktop-view-category mobile-view-category">
             {filteredListings.map((listing) => {
-              const buttonStyle = getButtonStyle(listing)
-              const statusBadge = getStatusBadge(listing.status)
-              const validImage = getValidImage(listing.media)
+              const buttonStyle = getButtonStyle(listing);
+              const statusBadge = getStatusBadge(listing.status);
+              const validImage = getValidImage(listing.media);
 
               return (
                 <div
@@ -505,43 +560,46 @@ const Business = () => {
                       <div className="details">
                         <div className="sub-container">
                           <p className="sub-text">Current Bid</p>
-                          <div className={`${getPriceColorClass(listing.status)}`}>
+                          <div
+                            className={`${getPriceColorClass(listing.status)}`}
+                          >
                             {(() => {
                               const amount = getCachedHighestBid(
                                 "business",
                                 listing.id,
-                                listing.price
+                                listing.price,
                               );
 
                               return amount !== null
                                 ? `$${formatAmount(amount)}`
                                 : "Contact for price";
                             })()}
-
                           </div>
                         </div>
                         <div className="sub-container">
                           <p className="sub-text2">Time</p>
                           {(() => {
-                            const { status, timeLeft } = getAuctionStatusAndCountdown(listing.duration || "");
-                            const countdown = countdowns[listing.id] || timeLeft;
+                            const { status, timeLeft } =
+                              getAuctionStatusAndCountdown(
+                                listing.duration || "",
+                              );
+                            const countdown =
+                              countdowns[listing.id] || timeLeft;
 
                             // ✅ UPCOMING: Show "Starting Soon"
                             if (status === "Upcoming") {
                               return (
                                 <span className="status-default">
-                                  {countdown ? `Start in ${countdown}` : "Starting soon"}
+                                  {countdown
+                                    ? `Start in ${countdown}`
+                                    : "Starting soon"}
                                 </span>
                               );
                             }
 
                             // ✅ ENDED: Show "Ended"
                             if (status === "End") {
-                              return (
-                                <span className="status-end">
-                                  Ended
-                                </span>
-                              );
+                              return <span className="status-end">Ended</span>;
                             }
 
                             // ✅ LIVE: Show days left OR HH:MM:SS countdown
@@ -578,22 +636,20 @@ const Business = () => {
                     </div>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
 
-          {
-            filteredListings.length === 0 && !loading && (
-              <div className="text-center py-8 text-gray-500">
-                No business listings available at the moment.
-              </div>
-            )
-          }
+          {filteredListings.length === 0 && !loading && (
+            <div className="text-center py-8 text-gray-500">
+              No business listings available at the moment.
+            </div>
+          )}
         </div>
       </div>
       <Footer />
     </>
-  )
-}
+  );
+};
 
-export default Business
+export default Business;

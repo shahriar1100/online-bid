@@ -15,6 +15,7 @@ import { Swiper as SwiperClass } from "swiper/types";
 import AuctionPanel from "src/components/buyer/AuctionPanel";
 import Loader from "src/components/loader";
 import { formatStorageDateTimeForDisplay } from "src/lib/date-utils";
+import QuestionSection from "src/components/qna/QuestionSection";
 
 type ListingStatus = "Upcoming" | "Live" | "End";
 
@@ -352,6 +353,11 @@ export default function RealEstateDetails() {
                   </p>
                 </div>
               )}
+              {/* Q&A Section */}
+<QuestionSection
+   listingId={listing.id}
+   listingType="realestate"
+/>
             </div>
           </section>
 

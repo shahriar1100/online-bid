@@ -1,10 +1,10 @@
-import { sqliteTable, text, integer, real, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index,} from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   uid: text("uid").notNull(),
   email: text("email").notNull().unique(),
-   phone: text("phone"), 
+  phone: text("phone"),
   name: text("name").notNull(),
   password_hash: text("password_hash").notNull(),
   role: text("role").default("user"),
@@ -165,19 +165,19 @@ export const business_listings = sqliteTable("business_listings", {
 
 export const bids = sqliteTable("bids", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  
+
   // Link to the listing
   listing_id: integer("listing_id").notNull(),
   listing_type: text("listing_type").notNull(), // 'realestate', 'automobile', 'business'
-  
+
   // Bidder info
   user_id: integer("user_id").notNull(),
   user_name: text("user_name").notNull(),
   user_avatar: text("user_avatar"), // Optional avatar URL
-  
+
   // Bid details
   bid_amount: real("bid_amount").notNull(), // Store as string for precision
-  
+
   // Timestamps
   created_at: integer("created_at", { mode: "timestamp" }).defaultNow(),
 });
@@ -244,5 +244,153 @@ export const auction_payments = sqliteTable(
   (t) => ({
     uniq_user_listing: uniqueIndex("uniq_user_listing_payment")
       .on(t.user_id, t.listing_id, t.listing_type),
+  })
+);
+
+// =========================
+// LISTING QUESTIONS
+// =========================
+
+export const listingQuestions = sqliteTable(
+  "listing_questions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+
+    listing_id: integer("listing_id").notNull(),
+
+    listing_type: text("listing_type", {
+      enum: ["realestate", "automobile", "business"],
+    }).notNull(),
+
+    user_id: integer("user_id").notNull(),
+
+    question: text("question").notNull(),
+
+    status: text("status", {
+      enum: ["pending", "approved", "rejected"],
+    })
+      .default("pending")
+      .notNull(),
+
+    is_visible: integer("is_visible", {
+      mode: "boolean",
+    })
+      .default(true)
+      .notNull(),
+
+    is_pinned: integer("is_pinned", {
+      mode: "boolean",
+    })
+      .default(false)
+      .notNull(),
+
+    total_answers: integer("total_answers")
+      .default(0)
+      .notNull(),
+
+    last_answer_at: integer("last_answer_at", {
+      mode: "timestamp_ms",
+    }),
+
+    created_at: integer("created_at", {
+      mode: "timestamp_ms",
+    })
+      .$defaultFn(() => new Date())
+      .notNull(),
+
+    updated_at: integer("updated_at", {
+      mode: "timestamp_ms",
+    })
+      .$defaultFn(() => new Date())
+      .$onUpdateFn(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    listingIdx: index("listing_questions_listing_idx").on(
+      table.listing_id,
+      table.listing_type
+    ),
+
+    userIdx: index("listing_questions_user_idx").on(table.user_id),
+
+    statusIdx: index("listing_questions_status_idx").on(table.status),
+  })
+);
+
+// =========================
+// LISTING ANSWERS
+// =========================
+
+export const listingAnswers = sqliteTable(
+  "listing_answers",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+
+    question_id: integer("question_id")
+      .references(() => listingQuestions.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+
+    listing_id: integer("listing_id").notNull(),
+
+    listing_type: text("listing_type", {
+      enum: ["realestate", "automobile", "business"],
+    }).notNull(),
+
+    user_id: integer("user_id").notNull(),
+
+    role: text("role", {
+      enum: ["seller", "admin", "moderator"],
+    }).notNull(),
+
+    answer: text("answer").notNull(),
+
+    is_best_answer: integer("is_best_answer", {
+      mode: "boolean",
+    })
+      .default(false)
+      .notNull(),
+
+    is_visible: integer("is_visible", {
+      mode: "boolean",
+    })
+      .default(true)
+      .notNull(),
+
+    is_edited: integer("is_edited", {
+      mode: "boolean",
+    })
+      .default(false)
+      .notNull(),
+
+    edited_at: integer("edited_at", {
+      mode: "timestamp_ms",
+    }),
+
+    created_at: integer("created_at", {
+      mode: "timestamp_ms",
+    })
+      .$defaultFn(() => new Date())
+      .notNull(),
+
+    updated_at: integer("updated_at", {
+      mode: "timestamp_ms",
+    })
+      .$defaultFn(() => new Date())
+      .$onUpdateFn(() => new Date())
+      .notNull(),
+  },
+  (table) => ({
+    questionIdx: index("listing_answers_question_idx").on(
+      table.question_id
+    ),
+
+    listingIdx: index("listing_answers_listing_idx").on(
+      table.listing_id,
+      table.listing_type
+    ),
+
+    userIdx: index("listing_answers_user_idx").on(table.user_id),
   })
 );

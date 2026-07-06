@@ -789,7 +789,7 @@ const Listing = () => {
                                                                 <p>Edit</p>
                                                             </Link>
                                                         ) : (
-                                                            <Link className="text-blue-600 hover:text-blue-800 text-left underline action-cont" href={""}>
+                                                            <Link className="text-blue-600 hover:text-blue-800 text-left underline action-cont" href={`/seller/update-ads/${ad.category.replace(/\s/g, "").toLowerCase()}/${ad.id}`}>
                                                                 <EyeIcon className="w-4 h-4 mr-1" />
                                                                 <p>View</p>
                                                             </Link>
@@ -883,7 +883,7 @@ const Listing = () => {
                                                     <p>Edit</p>
                                                 </Link>
                                             ) : (
-                                                <Link className="text-blue-600 hover:text-blue-800 underline action-cont" href={""}>
+                                                <Link className="text-blue-600 hover:text-blue-800 underline action-cont" href={`/seller/update-ads/${ad.category.replace(/\s/g, "").toLowerCase()}/${ad.id}`}>
                                                     <EyeIcon className="w-4 h-4 mr-1" />
                                                     <p>View</p>
                                                 </Link>
