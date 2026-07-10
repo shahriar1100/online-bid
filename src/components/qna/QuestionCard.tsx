@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { ArrowRight, Clock3, MessageCircle } from "lucide-react";
 
 import {
@@ -8,19 +9,35 @@ import {
   CardFooter,
   CardHeader,
 } from "src/components/ui/card";
+
 import { Badge } from "src/components/ui/badge";
 import { Button } from "src/components/ui/button";
 
+import AnswerCard from "./AnswerCard";
+import { ENV } from "src/util/env";
+import ReplyForm from "./ReplyForm";
+
+interface Answer {
+  id: number;
+  answer: string;
+  role: "seller" | "admin" | "moderator";
+  userId: number;
+  createdAt: number;
+}
+
 interface QuestionCardProps {
   id: number;
+  listingId: number;
+  listingType: "realestate" | "automobile" | "business";
+
   userName: string;
   question: string;
   createdAt: string;
+
   role?: "buyer" | "seller" | "admin";
   replyCount?: number;
   isAnswered?: boolean;
   onReply?: () => void;
-  onViewReplies?: () => void;
 }
 
 const roleColors = {
@@ -33,6 +50,9 @@ const roleColors = {
 };
 
 export default function QuestionCard({
+  id,
+  listingId,
+  listingType,
   userName,
   question,
   createdAt,
@@ -40,11 +60,45 @@ export default function QuestionCard({
   replyCount = 0,
   isAnswered = false,
   onReply,
-  onViewReplies,
 }: QuestionCardProps) {
+  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [loadingReplies, setLoadingReplies] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const [showReplyForm, setShowReplyForm] = useState(false);
+
+  async function loadReplies() {
+    try {
+      setLoadingReplies(true);
+
+      const res = await fetch(
+        `${ENV.NEXT_PUBLIC_WRANGLER_API_URL}/api/answers?questionId=${id}`,
+      );
+
+      const data = (await res.json()) as {
+        success: boolean;
+        answers: Answer[];
+      };
+
+      if (data.success) {
+        setAnswers(data.answers);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingReplies(false);
+    }
+  }
+
+  useEffect(() => {
+    if (showReplies) {
+      loadReplies();
+    }
+  }, [showReplies, id]);
+
   return (
-    <Card
-      className="
+    <>
+      <Card
+        className="
       group
       overflow-hidden
       rounded-2xl
@@ -58,111 +112,134 @@ export default function QuestionCard({
       hover:border-violet-500/30
       hover:shadow-[0_20px_60px_rgba(109,94,248,.12)]
     "
-    >
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {/* Avatar */}
-            <div
-              className="
-              flex
-              h-12
-              w-12
-              items-center
-              justify-center
-              rounded-full
-              bg-gradient-to-br
-              from-violet-500
-              to-fuchsia-500
-              text-base
-              font-semibold
-              text-white
-              shadow-lg
-            "
-            >
-              {userName.charAt(0).toUpperCase()}
-            </div>
+      >
+        <CardHeader className="pb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="
+                flex
+                h-12
+                w-12
+                items-center
+                justify-center
+                rounded-full
+                bg-gradient-to-br
+                from-violet-500
+                to-fuchsia-500
+                text-base
+                font-semibold
+                text-white
+                shadow-lg
+              "
+              >
+                {userName.charAt(0).toUpperCase()}
+              </div>
 
-            <div>
-              <h3 className="font-semibold text-foreground">
-                {userName}
-              </h3>
+              <div>
+                <h3 className="font-semibold text-foreground">{userName}</h3>
 
-              <div className="mt-1 flex items-center gap-2">
-                <Badge className={roleColors[role]}>
-                  {role.charAt(0).toUpperCase() + role.slice(1)}
-                </Badge>
+                <div className="mt-1 flex items-center gap-2">
+                  <Badge className={roleColors[role]}>
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
+                  </Badge>
 
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock3 className="h-3.5 w-3.5" />
-                  {createdAt}
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock3 className="h-3.5 w-3.5" />
+                    {createdAt}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          {isAnswered && (
-            <Badge className="border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-              Answered
-            </Badge>
+            {isAnswered && (
+              <Badge className="border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
+                Answered
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <p className="line-clamp-3 text-[15px] leading-7 text-muted-foreground">
+            {question}
+          </p>
+        </CardContent>
+
+        <CardFooter className="flex items-center justify-between border-t border-border/60 pt-5">
+          <button
+            onClick={() => setShowReplies(!showReplies)}
+            className="
+            flex
+            items-center
+            gap-2
+            text-sm
+            text-muted-foreground
+            transition-colors
+            hover:text-violet-400
+          "
+          >
+            <MessageCircle className="h-4 w-4" />
+            {replyCount} {replyCount === 1 ? "Reply" : "Replies"}
+          </button>
+
+          <Button
+            variant="ghost"
+            onClick={() => setShowReplyForm(!showReplyForm)}
+            className="
+    group/button
+    text-violet-400
+    hover:bg-violet-500/10
+    hover:text-violet-300
+  "
+          >
+            Reply
+            <ArrowRight
+              className="
+      ml-1
+      h-4
+      w-4
+      transition-transform
+      duration-300
+      group-hover/button:translate-x-1
+    "
+            />
+          </Button>
+        </CardFooter>
+      </Card>
+
+      {showReplyForm && (
+<ReplyForm
+  questionId={id}
+  listingId={listingId}
+  listingType={listingType}
+  onSuccess={() => {
+    setShowReplyForm(false);
+    loadReplies();
+    setShowReplies(true);
+  }}
+/>
+)}
+
+      {showReplies && (
+        <div className="ml-8 mt-4 space-y-3">
+          {loadingReplies ? (
+            <p className="text-sm text-muted-foreground">Loading replies...</p>
+          ) : answers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No replies yet.</p>
+          ) : (
+            answers.map((answer) => (
+              <AnswerCard
+                key={answer.id}
+                userName={`Seller #${answer.userId}`}
+                answer={answer.answer}
+                createdAt={new Date(answer.createdAt).toLocaleString()}
+                role={answer.role}
+              />
+            ))
           )}
         </div>
-      </CardHeader>
-
-      <CardContent>
-        <p
-          className="
-          line-clamp-3
-          text-[15px]
-          leading-7
-          text-muted-foreground
-        "
-        >
-          {question}
-        </p>
-      </CardContent>
-
-      <CardFooter className="flex items-center justify-between border-t border-border/60 pt-5">
-        <button
-          onClick={onViewReplies}
-          className="
-          flex
-          items-center
-          gap-2
-          text-sm
-          text-muted-foreground
-          transition-colors
-          hover:text-violet-400
-        "
-        >
-          <MessageCircle className="h-4 w-4" />
-          {replyCount} {replyCount === 1 ? "Reply" : "Replies"}
-        </button>
-
-        <Button
-          variant="ghost"
-          onClick={onReply}
-          className="
-          group/button
-          text-violet-400
-          hover:bg-violet-500/10
-          hover:text-violet-300
-        "
-        >
-          Reply
-
-          <ArrowRight
-            className="
-            ml-1
-            h-4
-            w-4
-            transition-transform
-            duration-300
-            group-hover/button:translate-x-1
-          "
-          />
-        </Button>
-      </CardFooter>
-    </Card>
+      )}
+    </>
   );
 }

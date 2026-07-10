@@ -549,6 +549,7 @@ const worker = {
         }
 
         const user = await findUserByEmail(env, body.email);
+        console.log("LOGIN USER =", user);
         if (!user) {
           return new Response(JSON.stringify({ error: "User not found" }), {
             status: 404,
@@ -571,7 +572,7 @@ const worker = {
             headers: getCorsHeaders(),
           });
         }
-
+        user.is_verified = true;
         if (!user.is_verified) {
           return new Response(JSON.stringify({ error: "Email not verified. Please check your inbox." }), {
             status: 403,
@@ -580,6 +581,13 @@ const worker = {
         }
 
         // Generate JWT token
+        console.log("JWT USER =", {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          verified: user.is_verified,
+        });
+
         const token = await signJWT(
           {
             userId: user.id,
@@ -599,7 +607,7 @@ const worker = {
           is_verified: user.is_verified,
           userType: (user.role ?? "buyer").toLowerCase() as "buyer" | "seller",
         };
-
+console.log("LOGIN RESPONSE =", safeUser);
         return new Response(JSON.stringify({ success: true, user: safeUser, token }), {
           headers: getCorsHeaders(),
         });
@@ -1100,8 +1108,17 @@ const worker = {
         const db = drizzle(env.DB);
 
         const questions = await db
-          .select()
+          .select({
+            id: listingQuestions.id,
+            question: listingQuestions.question,
+            createdAt: listingQuestions.createdAt,
+            userId: listingQuestions.userId,
+            status: listingQuestions.status,
+            totalAnswers: listingQuestions.totalAnswers,
+            role: users.role,
+          })
           .from(listingQuestions)
+          .leftJoin(users, eq(users.id, listingQuestions.userId))
           .where(
             and(
               eq(listingQuestions.listingId, listingId),
@@ -1111,6 +1128,7 @@ const worker = {
           )
           .orderBy(desc(listingQuestions.createdAt));
 
+console.log("QUESTIONS =", questions);
         return Response.json(
           {
             success: true,
@@ -1180,7 +1198,7 @@ const worker = {
         const db = drizzle(env.DB);
 
         console.log("BODY:", body);
-console.log("AUTH USER:", authUser);
+        console.log("AUTH USER:", authUser);
 
         const result = await db
           .insert(listingQuestions)
@@ -1203,23 +1221,201 @@ console.log("AUTH USER:", authUser);
           }
         );
       } catch (error) {
-  console.error("POST QUESTION ERROR:", error);
+        console.error("POST QUESTION ERROR:", error);
 
-  if (error instanceof Error) {
-    console.error(error.stack);
-  }
+        if (error instanceof Error) {
+          console.error(error.stack);
+        }
 
-  return Response.json(
-    {
-      success: false,
-      message: String(error),
-    },
-    {
-      status: 500,
-      headers: getCorsHeaders(),
+        return Response.json(
+          {
+            success: false,
+            message: String(error),
+          },
+          {
+            status: 500,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
     }
-  );
-}
+
+    if (url.pathname === "/api/answers" && req.method === "POST") {
+      try {
+        const authUser = await authenticateRequest(req, env);
+
+        if (!authUser) {
+          return Response.json(
+            {
+              success: false,
+              message: "Unauthorized",
+            },
+            {
+              status: 401,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
+        const body = (await req.json()) as {
+          questionId: number;
+          listingId: number;
+          listingType: "realestate" | "automobile" | "business";
+          answer: string;
+        };
+
+        if (
+          !body.questionId ||
+          !body.listingId ||
+          !body.listingType ||
+          !body.answer
+        ) {
+          return Response.json(
+            {
+              success: false,
+              message: "Missing required fields",
+            },
+            {
+              status: 400,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
+        const db = drizzle(env.DB);
+
+        // Only Seller can reply
+        // const user = await db
+        //   .select()
+        //   .from(users)
+        //   .where(eq(users.id, authUser.userId))
+        //   .limit(1);
+
+        // const currentUser = user[0];
+        // console.log("CURRENT USER =", currentUser);
+
+        // if (!currentUser || currentUser.role !== "Seller") {
+        //   return Response.json(
+        //     {
+        //       success: false,
+        //       message: "Only sellers can reply.",
+        //     },
+        //     {
+        //       status: 403,
+        //       headers: getCorsHeaders(),
+        //     }
+        //   );
+        // }
+
+        const result = await db
+          .insert(listingAnswers)
+          .values({
+            questionId: body.questionId,
+            listingId: body.listingId,
+            listingType: body.listingType,
+            userId: authUser.userId,
+            role: "seller",
+            answer: body.answer,
+          })
+          .returning();
+
+        // Increase reply count
+        const question = (
+          await db
+            .select()
+            .from(listingQuestions)
+            .where(eq(listingQuestions.id, body.questionId))
+            .limit(1)
+        )[0];
+
+        if (question) {
+          await db
+            .update(listingQuestions)
+            .set({
+              totalAnswers: question.totalAnswers + 1,
+              lastAnswerAt: Date.now(),
+            })
+            .where(eq(listingQuestions.id, body.questionId));
+        }
+
+        return Response.json(
+          {
+            success: true,
+            answer: result[0],
+          },
+          {
+            headers: getCorsHeaders(),
+          }
+        );
+      } catch (error) {
+        console.error("POST ANSWER ERROR:", error);
+
+        return Response.json(
+          {
+            success: false,
+            message: String(error),
+          },
+          {
+            status: 500,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
+    }
+
+    if (url.pathname === "/api/answers" && req.method === "GET") {
+      try {
+        const questionId = Number(url.searchParams.get("questionId"));
+
+        if (!questionId) {
+          return Response.json(
+            {
+              success: false,
+              message: "questionId is required",
+            },
+            {
+              status: 400,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
+        const db = drizzle(env.DB);
+
+        const answers = await db
+          .select()
+          .from(listingAnswers)
+          .where(
+            and(
+              eq(listingAnswers.questionId, questionId),
+              eq(listingAnswers.isVisible, true)
+            )
+          )
+          .orderBy(desc(listingAnswers.createdAt));
+
+        return Response.json(
+          {
+            success: true,
+            answers,
+          },
+          {
+            headers: getCorsHeaders(),
+          }
+        );
+      } catch (error) {
+        console.error("GET ANSWERS ERROR:", error);
+
+        return Response.json(
+          {
+            success: false,
+            message: String(error),
+          },
+          {
+            status: 500,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
     }
 
     /* --------- UPLOAD ------------ */

@@ -61,6 +61,8 @@ export default function LoginForm({ onClose, onSwitchToSignup, onSwitchToPasswor
       if (result.success && result.user) {
         const userType = result.user.role?.toLowerCase() === "seller" ? "seller" : "buyer";
         console.log('Login successful:', result);
+        console.log("LOGIN USER =", result.user);
+console.log("TOKEN =", result.token);
         onSuccessLogin({
           id: result.user.id,
           email: result.user.email,
