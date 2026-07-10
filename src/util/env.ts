@@ -24,6 +24,7 @@ export const ENV = {
   SMTP_PASSWORD: process.env.SMTP_PASSWORD || "",
   SMTP_FROM_EMAIL: process.env.FROM_EMAIL || "",
   SMTP_FROM_NAME: "IBIDS",
+  RESEND_API_KEY: process.env.RESEND_API_KEY || "",
 
   // Admin
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || "developers@ibids365.com",

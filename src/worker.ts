@@ -486,24 +486,24 @@ const worker = {
         }
 
         // Send admin notification email (fire-and-forget — does not block signup)
-        try {
-          console.log('admin email', ENV.ADMIN_EMAIL);
+        // try {
+        //   console.log('admin email', ENV.ADMIN_EMAIL);
 
-          const adminHtml = newUserRegistrationAdminEmail({
-            name: body.name,
-            email: body.email,
-            phone: body.phone,
-            registrationType: body.registrationType,
-          });
-          await sendEmail(
-            ENV.ADMIN_EMAIL,
-            `New User Registration: ${body.name} (${body.registrationType}) - IBIDS 365`,
-            adminHtml
-          );
-          console.log("Admin notification email sent for new user:", body.email);
-        } catch (adminErr) {
-          console.error("Failed to send admin notification email:", adminErr);
-        }
+        //   const adminHtml = newUserRegistrationAdminEmail({
+        //     name: body.name,
+        //     email: body.email,
+        //     phone: body.phone,
+        //     registrationType: body.registrationType,
+        //   });
+        //   await sendEmail(
+        //     ENV.ADMIN_EMAIL,
+        //     `New User Registration: ${body.name} (${body.registrationType}) - IBIDS 365`,
+        //     adminHtml
+        //   );
+        //   console.log("Admin notification email sent for new user:", body.email);
+        // } catch (adminErr) {
+        //   console.error("Failed to send admin notification email:", adminErr);
+        // }
 
         return new Response(
           JSON.stringify({
@@ -572,7 +572,7 @@ const worker = {
             headers: getCorsHeaders(),
           });
         }
-        user.is_verified = true;
+        // user.is_verified = true;
         if (!user.is_verified) {
           return new Response(JSON.stringify({ error: "Email not verified. Please check your inbox." }), {
             status: 403,

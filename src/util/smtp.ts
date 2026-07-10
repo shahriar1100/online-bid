@@ -1,27 +1,30 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { ENV } from "../util/env";
 
-export async function sendEmail(to: string, subject: string, html: string) {
-    const transporter = nodemailer.createTransport({
-        host: ENV.SMTP_HOST,
-        port: Number(ENV.SMTP_PORT),
-        secure: Number(ENV.SMTP_PORT) === 465, // true for port 465
-        auth: {
-            user: ENV.SMTP_USER,
-            pass: ENV.SMTP_PASSWORD,
-        },
-    });
+const resend = new Resend(ENV.RESEND_API_KEY);
 
-    if (!ENV.SMTP_USER || !ENV.SMTP_PASSWORD) {
-        throw new Error("Missing SMTP_USER or SMTP_PASSWORD in environment variables");
-    }
+export async function sendEmail(
+  to: string,
+  subject: string,
+  html: string
+) {
+  if (!ENV.RESEND_API_KEY) {
+    throw new Error("Missing RESEND_API_KEY");
+  }
 
-    const info = await transporter.sendMail({
-        from: `"${ENV.SMTP_FROM_NAME}" <${ENV.SMTP_USER}>`,
-        to,
-        subject,
-        html,
-    });
+  const { data, error } = await resend.emails.send({
+    from: ENV.SMTP_FROM_EMAIL || "onboarding@resend.dev",
+    to,
+    subject,
+    html,
+  });
 
-    console.log("Email sent: %s", info.messageId);
+  if (error) {
+    console.error("Resend Error:", error);
+    throw new Error(error.message);
+  }
+
+  console.log("Email sent successfully:", data?.id);
+
+  return data;
 }
