@@ -1,7 +1,8 @@
 // src/util/durable.ts
 
 import { DurableObject } from "cloudflare:workers";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
+
 // ════════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ════════════════════════════════════════════════════════════════════════════════
@@ -42,11 +43,10 @@ interface WebSocketMessage {
 interface Env {
     DB: D1Database;
     AUCTION_ROOM: DurableObjectNamespace;
-    SMTP_HOST: string;
-    SMTP_PORT: string;
-    SMTP_USER: string;
-    SMTP_PASSWORD: string;
-    SMTP_FROM_NAME: string;
+
+    RESEND_API_KEY: string;
+    FROM_EMAIL: string;
+
     FRONTEND_BASE_URL: string;
 }
 
@@ -166,24 +166,25 @@ private async sendWinnerEmail(): Promise<void> {
         `;
 
         // Send email
-        const transporter = nodemailer.createTransport({
-            host: this.env.SMTP_HOST,
-            port: Number(this.env.SMTP_PORT),
-            secure: Number(this.env.SMTP_PORT) === 465,
-            auth: {
-                user: this.env.SMTP_USER,
-                pass: this.env.SMTP_PASSWORD,
-            },
-        });
+const resend = new Resend(this.env.RESEND_API_KEY);
 
-        await transporter.sendMail({
-            from: `"${this.env.SMTP_FROM_NAME || 'IBIDS 365'}" <${this.env.SMTP_USER}>`,
-            to: winner.email,
-            subject: `🏆 You won the auction!`,
-            html: emailHtml,
-        });
+const { error } = await resend.emails.send({
+    from: this.env.FROM_EMAIL || "onboarding@resend.dev",
+    to: winner.email,
+    subject: "🏆 You won the auction!",
+    html: emailHtml,
+});
 
-        console.log(`✅ Winner email sent to ${winner.email}`);
+if (error) {
+    console.error("❌ Winner Email Error:", error);
+
+    this.auctionState.winnerEmailSent = false;
+    await this.state.storage.put("auctionState", this.auctionState);
+
+    return;
+}
+
+console.log(`✅ Winner email sent to ${winner.email}`);
 
     } catch (error) {
         console.error("❌ Failed to send winner email:", error);
@@ -193,6 +194,73 @@ private async sendWinnerEmail(): Promise<void> {
     } finally {
         this.emailSendingInProgress = false;
     }
+}
+
+
+private async sendOutbidEmail(
+    previousUserId: number,
+    previousBid: number,
+    newBid: number
+): Promise<void> {
+
+    const user = await this.env.DB.prepare(
+        `SELECT name, email FROM users WHERE id = ?`
+    )
+        .bind(previousUserId)
+        .first<{ name: string; email: string }>();
+
+    if (!user?.email) {
+        console.log("❌ Previous bidder email not found");
+        return;
+    }
+
+    const auctionUrl =
+        `${this.env.FRONTEND_BASE_URL}/buyer/${this.auctionState?.listingType}/${this.auctionState?.listingId}`;
+
+    const emailHtml = `
+        <h2>You have been outbid!</h2>
+
+        <p>Hi ${user.name},</p>
+
+        <p>Another bidder has placed a higher bid on an auction you were participating in.</p>
+
+        <p><strong>Your Bid:</strong> $${previousBid}</p>
+
+        <p><strong>Current Highest Bid:</strong> $${newBid}</p>
+
+        <br>
+
+        <a href="${auctionUrl}"
+           style="
+           display:inline-block;
+           background:#2563eb;
+           color:#fff;
+           padding:12px 22px;
+           text-decoration:none;
+           border-radius:6px;">
+           Place Another Bid
+        </a>
+
+        <br><br>
+
+        <p>IBIDS 365</p>
+    `;
+
+const resend = new Resend(this.env.RESEND_API_KEY);
+
+const { error } = await resend.emails.send({
+    from: this.env.FROM_EMAIL || "onboarding@resend.dev",
+    to: user.email,
+    subject: "🔔 You have been outbid!",
+    html: emailHtml,
+});
+
+if (error) {
+    console.error("❌ Resend Error:", error);
+    return;
+}
+
+console.log("✅ Outbid email sent:", user.email);
 }
 
 
@@ -813,6 +881,11 @@ private async sendWinnerEmail(): Promise<void> {
             return { success: false, error: "Minimum bid amount is $1" };
         }
 
+        const previousHighestBidder = this.auctionState.highestBidder;
+const previousBidAmount = this.auctionState.currentBid;
+
+
+
         // Create the bid
         const bid: Bid = {
             id: `${Date.now()}-${data.userId}`,
@@ -861,6 +934,17 @@ private async sendWinnerEmail(): Promise<void> {
         });
 
         console.log(`✅ Bid placed: $${data.bidAmount} by ${data.userName}`);
+
+        if (
+    previousHighestBidder &&
+    previousHighestBidder.userId !== data.userId
+) {
+    await this.sendOutbidEmail(
+        previousHighestBidder.userId,
+        previousBidAmount,
+        data.bidAmount
+    );
+}
 
         return { success: true, bid };
     }

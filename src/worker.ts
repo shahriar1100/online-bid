@@ -2689,7 +2689,11 @@ console.log("QUESTIONS =", questions);
         }).returning();
 
         console.log(`✅ New bid created: $${body.bidAmount} by ${user.name} for ${body.listingType}/${body.listingId}`);
-
+console.log("Bidder Email:", user.email);
+console.log("Bidder Name:", user.name);
+console.log("Bid Amount:", body.bidAmount);
+console.log("Listing ID:", body.listingId);
+console.log("Listing Type:", body.listingType);
         return new Response(
           JSON.stringify({
             success: true,

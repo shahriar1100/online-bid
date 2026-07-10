@@ -55,6 +55,7 @@
 	],
 	"vars": {
 		"FRONTEND_BASE_URL": "https://ibids365.com",
+		"FROM_EMAIL": "onboarding@resend.dev",
 		"JWT_SECRET": "12345678",
 		"STRIPE_SECRET_KEY": "mk_1SZwFQBNfjVS4iIyq0hsi610",
 		"STRIPE_WEBHOOK_SECRET": "whsec_fJJcTYwNdiPoCHRD7wdSm42o9AzIKnAu",
