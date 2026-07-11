@@ -3,6 +3,8 @@ import { and, eq } from "drizzle-orm";
 
 import { chatRooms } from "../../db/model/chat-room";
 import { users } from "../../db/schema";
+import { chatParticipants } from "../../db/model/chat-participant";
+
 
 interface Env {
     DB: D1Database;
@@ -49,6 +51,36 @@ export async function createChatRoom(
             lastMessageAt: Date.now(),
         })
         .returning();
+
+    console.log("Creating buyer participant...");
+
+    try {
+
+        await db.insert(chatParticipants).values({
+            roomId: newRoom.id,
+            userId: buyerId,
+            role: "buyer",
+        });
+
+        console.log("Buyer inserted");
+
+        console.log("Creating seller participant...");
+
+        await db.insert(chatParticipants).values({
+            roomId: newRoom.id,
+            userId: sellerId,
+            role: "seller",
+        });
+
+        console.log("Seller inserted");
+
+        console.log("Participants created successfully");
+
+    } catch (err) {
+
+        console.error("Participant insert failed:", err);
+
+    }
 
     return newRoom;
 }

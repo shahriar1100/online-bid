@@ -17,6 +17,9 @@ import { listingAnswers } from "./db/model/listing-answer";
 import { createRoom } from "./lib/chat/createRoom";
 import { getRooms } from "./lib/chat/getRooms";
 import { createChatRoom } from "./lib/chat/createRoom";
+import { sendMessage } from "./lib/chat/sendMessage";
+import { getMessages } from "./lib/chat/getMessages";
+
 
 export interface Env {
   DB: D1Database;
@@ -217,13 +220,13 @@ async function finalizeAuctionIfNeeded(
 
   console.log(`🔍 Found listing, duration: "${listing.duration}"`);
 
- console.log("Duration raw:", listing.duration);
+  console.log("Duration raw:", listing.duration);
 
-const { start, end } = parseDuration(listing.duration);
+  const { start, end } = parseDuration(listing.duration);
 
-console.log("Start:", new Date(start * 1000).toString());
-console.log("End:", new Date(end * 1000).toString());
-console.log("Now:", new Date(now * 1000).toString());
+  console.log("Start:", new Date(start * 1000).toString());
+  console.log("End:", new Date(end * 1000).toString());
+  console.log("Now:", new Date(now * 1000).toString());
 
 
 
@@ -357,6 +360,20 @@ const worker = {
     // ========================
     if (url.pathname === "/api/chat/rooms" && req.method === "GET") {
       return getRooms(req, env);
+    }
+
+    // ========================
+    // CHAT - SEND MESSAGE
+    // ========================
+    if (url.pathname === "/api/chat/send" && req.method === "POST") {
+      return sendMessage(req, env);
+    }
+
+    // ========================
+    // CHAT - GET MESSAGES
+    // ========================
+    if (url.pathname === "/api/chat/messages" && req.method === "GET") {
+      return getMessages(req, env);
     }
 
     // ========================
@@ -3801,6 +3818,8 @@ const worker = {
           body.listingId,
           body.listingType
         );
+        console.log("========== PAY NOW DEBUG ==========");
+        console.log("sessionData =", sessionData);
 
         if (!sessionData || sessionData.status !== "ended") {
           return new Response(JSON.stringify({ error: "Auction not ended" }), {

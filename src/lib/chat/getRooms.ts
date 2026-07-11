@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { eq, or } from "drizzle-orm";
 import { chatRooms } from "../../db/model/chat-room";
 
+
 interface Env {
   DB: D1Database;
 }

@@ -1,0 +1,25 @@
+[33mcommit cc92d74e01bc060b084fee8124845b0c68b2f1b7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: alshahriar-dev <sahariarsikder.aa@gmail.com>
+Date:   Sat Jul 11 23:49:48 2026 +0600
+
+    Complete auction payment and seller contact unlock flow
+
+[1mdiff --git a/wrangler.jsonc b/wrangler.jsonc[m
+[1mindex 9c8a8db..01c78db 100644[m
+[1m--- a/wrangler.jsonc[m
+[1m+++ b/wrangler.jsonc[m
+[36m@@ -54,10 +54,10 @@[m
+ 		}[m
+ 	],[m
+ 	"vars": {[m
+[31m-		"FRONTEND_BASE_URL": "https://ibids365.com",[m
+[32m+[m		[32m"FRONTEND_BASE_URL": "http://localhost:3000",[m
+ 		"FROM_EMAIL": "onboarding@resend.dev",[m
+ 		"JWT_SECRET": "12345678",[m
+[31m-		"STRIPE_SECRET_KEY": "mk_1SZwFQBNfjVS4iIyq0hsi610",[m
+[32m+[m		[32m"STRIPE_SECRET_KEY": "sk_test_51Te6xlLasDZTRLTRJOVwZaR3WOzCTFyiOlbyk8M7d7ernvUBh4HteUqb8BQsvB6S3N5j7zvQ1nl7yVeyWT1ru4uY00rwf8Wsdh",[m
+ 		"STRIPE_WEBHOOK_SECRET": "whsec_fJJcTYwNdiPoCHRD7wdSm42o9AzIKnAu",[m
+ 	}[m
+[31m-}[m
+\ No newline at end of file[m
+[32m+[m[32m}[m
