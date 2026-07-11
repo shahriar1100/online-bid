@@ -1,0 +1,165 @@
+import { drizzle } from "drizzle-orm/d1";
+import { and, eq } from "drizzle-orm";
+
+import { chatRooms } from "../../db/model/chat-room";
+import { users } from "../../db/schema";
+
+interface Env {
+    DB: D1Database;
+}
+
+export async function createChatRoom(
+    db: ReturnType<typeof drizzle>,
+    data: {
+        listingId: number;
+        listingType: "realestate" | "automobile" | "business";
+        buyerId: number;
+        sellerId: number;
+    }
+): Promise<typeof chatRooms.$inferSelect> {
+    const { listingId, listingType, buyerId, sellerId } = data;
+
+    const existingRoom = await db
+        .select()
+        .from(chatRooms)
+        .where(
+            and(
+                eq(chatRooms.listingId, listingId),
+                eq(chatRooms.listingType, listingType),
+                eq(chatRooms.buyerId, buyerId),
+                eq(chatRooms.sellerId, sellerId)
+            )
+        )
+        .get();
+
+    if (existingRoom) {
+        return existingRoom;
+    }
+
+    const [newRoom] = await db
+        .insert(chatRooms)
+        .values({
+            listingId,
+            listingType,
+            buyerId,
+            sellerId,
+            paymentRequired: true,
+            paymentCompleted: true,
+            roomStatus: "active",
+            lastMessageAt: Date.now(),
+        })
+        .returning();
+
+    return newRoom;
+}
+
+export async function createRoom(
+    req: Request,
+    env: Env
+): Promise<Response> {
+    const db = drizzle(env.DB);
+
+    try {
+        const body = await req.json() as {
+            listingId: number;
+            listingType: "realestate" | "automobile" | "business";
+            buyerId: number;
+            sellerId: number;
+        };
+
+        const { listingId, listingType, buyerId, sellerId } = body;
+
+        if (!listingId || !listingType || !buyerId || !sellerId) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Missing required fields",
+                }),
+                {
+                    status: 400,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
+
+        const buyer = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, buyerId))
+            .get();
+
+        if (!buyer) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Buyer not found",
+                }),
+                {
+                    status: 404,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
+
+        const seller = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, sellerId))
+            .get();
+
+        if (!seller) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Seller not found",
+                }),
+                {
+                    status: 404,
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
+
+        const room = await createChatRoom(db, {
+            listingId,
+            listingType,
+            buyerId,
+            sellerId,
+        });
+
+        return new Response(
+            JSON.stringify({
+                success: true,
+                roomId: room.id,
+                room,
+            }),
+            {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+    } catch (error) {
+        console.error("Create room error:", error);
+        return new Response(
+            JSON.stringify({
+                success: false,
+                error: "Internal Server Error",
+            }),
+            {
+                status: 500,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+    }
+}

@@ -2,6 +2,8 @@
 
 import { DurableObject } from "cloudflare:workers";
 import { Resend } from "resend";
+import { winnerEmailTemplate } from "../lib/email/templates/winner";
+import { outbidEmailTemplate } from "../lib/email/templates/outbid";
 
 // ════════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -158,12 +160,11 @@ private async sendWinnerEmail(): Promise<void> {
         const auctionUrl = `${this.env.FRONTEND_BASE_URL || 'https://ibids365.com'}/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`;
 
         // Simple email content
-        const emailHtml = `
-            <p>Hi ${winner.name || this.auctionState.highestBidder.userName},</p>
-            <p>Congratulations! 🎉 You have won the auction with a bid of <strong>$${this.auctionState.currentBid.toLocaleString()}</strong>.</p>
-            <p>View your auction: <a href="${auctionUrl}">${auctionUrl}</a></p>
-            <p>Thank you for using IBIDS 365!</p>
-        `;
+        const emailHtml = winnerEmailTemplate({
+    name: winner.name || this.auctionState.highestBidder.userName,
+    amount: this.auctionState.currentBid,
+    auctionUrl,
+});
 
         // Send email
 const resend = new Resend(this.env.RESEND_API_KEY);
@@ -217,34 +218,12 @@ private async sendOutbidEmail(
     const auctionUrl =
         `${this.env.FRONTEND_BASE_URL}/buyer/${this.auctionState?.listingType}/${this.auctionState?.listingId}`;
 
-    const emailHtml = `
-        <h2>You have been outbid!</h2>
-
-        <p>Hi ${user.name},</p>
-
-        <p>Another bidder has placed a higher bid on an auction you were participating in.</p>
-
-        <p><strong>Your Bid:</strong> $${previousBid}</p>
-
-        <p><strong>Current Highest Bid:</strong> $${newBid}</p>
-
-        <br>
-
-        <a href="${auctionUrl}"
-           style="
-           display:inline-block;
-           background:#2563eb;
-           color:#fff;
-           padding:12px 22px;
-           text-decoration:none;
-           border-radius:6px;">
-           Place Another Bid
-        </a>
-
-        <br><br>
-
-        <p>IBIDS 365</p>
-    `;
+    const emailHtml = outbidEmailTemplate({
+    name: user.name,
+    previousBid,
+    currentBid: newBid,
+    auctionUrl,
+});
 
 const resend = new Resend(this.env.RESEND_API_KEY);
 

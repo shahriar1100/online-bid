@@ -54,10 +54,10 @@
 		}
 	],
 	"vars": {
-		"FRONTEND_BASE_URL": "https://ibids365.com",
+		"FRONTEND_BASE_URL": "http://localhost:3000",
 		"FROM_EMAIL": "onboarding@resend.dev",
 		"JWT_SECRET": "12345678",
-		"STRIPE_SECRET_KEY": "mk_1SZwFQBNfjVS4iIyq0hsi610",
+		"STRIPE_SECRET_KEY": "sk_test_51Te6xlLasDZTRLTRJOVwZaR3WOzCTFyiOlbyk8M7d7ernvUBh4HteUqb8BQsvB6S3N5j7zvQ1nl7yVeyWT1ru4uY00rwf8Wsdh",
 		"STRIPE_WEBHOOK_SECRET": "whsec_fJJcTYwNdiPoCHRD7wdSm42o9AzIKnAu",
 	}
 }

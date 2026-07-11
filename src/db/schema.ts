@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real, uniqueIndex, index,} from "drizzle-orm/sqlite-core";
 
+
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   uid: text("uid").notNull(),
@@ -394,3 +395,7 @@ export const listingAnswers = sqliteTable(
     userIdx: index("listing_answers_user_idx").on(table.user_id),
   })
 );
+
+export { chatRooms } from "./model/chat-room";
+export { chatMessages } from "./model/chat-message";
+export { chatParticipants } from "./model/chat-participant";

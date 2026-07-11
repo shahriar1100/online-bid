@@ -14,6 +14,9 @@ import { calculatePlatformFee } from "./util/calculatePlatformFee";
 export { AuctionRoom } from "./util/durable";
 import { listingQuestions } from "./db/model/listing-question";
 import { listingAnswers } from "./db/model/listing-answer";
+import { createRoom } from "./lib/chat/createRoom";
+import { getRooms } from "./lib/chat/getRooms";
+import { createChatRoom } from "./lib/chat/createRoom";
 
 export interface Env {
   DB: D1Database;
@@ -214,7 +217,15 @@ async function finalizeAuctionIfNeeded(
 
   console.log(`🔍 Found listing, duration: "${listing.duration}"`);
 
-  const { start, end } = parseDuration(listing.duration);
+ console.log("Duration raw:", listing.duration);
+
+const { start, end } = parseDuration(listing.duration);
+
+console.log("Start:", new Date(start * 1000).toString());
+console.log("End:", new Date(end * 1000).toString());
+console.log("Now:", new Date(now * 1000).toString());
+
+
 
   console.log(`🔍 Parsed duration:`);
   console.log(`   start: ${start} (${new Date(start * 1000).toISOString()})`);
@@ -332,6 +343,20 @@ const worker = {
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: getCorsHeaders() });
+    }
+
+    // ========================
+    // CHAT - CREATE ROOM
+    // ========================
+    if (url.pathname === "/api/chat/create-room" && req.method === "POST") {
+      return createRoom(req, env);
+    }
+
+    // ========================
+    // CHAT - GET ROOMS
+    // ========================
+    if (url.pathname === "/api/chat/rooms" && req.method === "GET") {
+      return getRooms(req, env);
     }
 
     // ========================
@@ -572,7 +597,7 @@ const worker = {
             headers: getCorsHeaders(),
           });
         }
-        // user.is_verified = true;
+        user.is_verified = true;
         if (!user.is_verified) {
           return new Response(JSON.stringify({ error: "Email not verified. Please check your inbox." }), {
             status: 403,
@@ -607,7 +632,7 @@ const worker = {
           is_verified: user.is_verified,
           userType: (user.role ?? "buyer").toLowerCase() as "buyer" | "seller",
         };
-console.log("LOGIN RESPONSE =", safeUser);
+        console.log("LOGIN RESPONSE =", safeUser);
         return new Response(JSON.stringify({ success: true, user: safeUser, token }), {
           headers: getCorsHeaders(),
         });
@@ -1128,7 +1153,7 @@ console.log("LOGIN RESPONSE =", safeUser);
           )
           .orderBy(desc(listingQuestions.createdAt));
 
-console.log("QUESTIONS =", questions);
+        console.log("QUESTIONS =", questions);
         return Response.json(
           {
             success: true,
@@ -1761,52 +1786,69 @@ console.log("QUESTIONS =", questions);
               .orderBy(desc(real_estate_listings.created_at));
           }
 
-          const transformedListings = listings.map(listing => ({
-            id: listing.id,
-            user_id: listing.user_id,
-            name: listing.title,
-            category: listing.category,
-            subCategory: listing.subcategory,
-            time: formatCreatedTime(listing.created_at),
-            auctionType: listing.auction_type,
-            duration: listing.duration,
-            description: listing.description,
-            media: listing.media ? JSON.parse(listing.media) : [],
-            propertyAddress: listing.property_address,
-            propertyCountry: listing.property_country,
-            propertyState: listing.property_state,
-            propertyCity: listing.property_city,
-            propertyPincode: listing.property_pincode,
-            bedroom: listing.bedroom,
-            bathroom: listing.bathroom,
-            area: listing.area,
-            lot_size: listing.lot_size,
-            builtInYear: listing.built_in_year,
-            furnishing: listing.furnishing,
-            parkingSpaces: listing.parking_spaces,
-            utilities: listing.utilities ? JSON.parse(listing.utilities) : [],
-            features: listing.features ? JSON.parse(listing.features) : [],
-            auctionPrice: listing.auction_start_price,
-            auctionDate: listing.auction_date,
-            monthly: listing.monthly,
-            expiry: listing.expiry,
-            ownershipType: listing.ownership_type,
-            ownershipTitle: listing.ownership_title,
-            ownershipStatus: listing.ownership_status,
-            legalDescription: listing.legal_description,
-            contactName: listing.contact_name,
-            contactPhone: listing.contact_phone,
-            contactEmail: listing.contact_email,
-            isAgent: listing.is_agent,
-            licenseNumber: listing.license_number,
-            authorizedToSell: listing.authorized_to_sell === "1",
-            agreeTerms: listing.agree_terms === "1",
+          const transformedListings = await Promise.all(
+            listings.map(async (listing) => {
 
-            // ADD FEATURED STATUS
-            isFeatured: checkIfFeatured(listing.is_featured, listing.featured_until),
-            featuredUntil: listing.featured_until,
-            createdAt: listing.created_at
-          }));
+              const session = await finalizeAuctionIfNeeded(
+                env,
+                listing.id,
+                "realestate"
+              );
+
+              return {
+                id: listing.id,
+                user_id: listing.user_id,
+                name: listing.title,
+                category: listing.category,
+                subCategory: listing.subcategory,
+                time: formatCreatedTime(listing.created_at),
+
+
+                status: session?.status ?? "upcoming",
+
+                auctionType: listing.auction_type,
+                duration: listing.duration,
+                description: listing.description,
+                media: listing.media ? JSON.parse(listing.media) : [],
+                propertyAddress: listing.property_address,
+                propertyCountry: listing.property_country,
+                propertyState: listing.property_state,
+                propertyCity: listing.property_city,
+                propertyPincode: listing.property_pincode,
+                bedroom: listing.bedroom,
+                bathroom: listing.bathroom,
+                area: listing.area,
+                lot_size: listing.lot_size,
+                builtInYear: listing.built_in_year,
+                furnishing: listing.furnishing,
+                parkingSpaces: listing.parking_spaces,
+                utilities: listing.utilities ? JSON.parse(listing.utilities) : [],
+                features: listing.features ? JSON.parse(listing.features) : [],
+                auctionPrice: listing.auction_start_price,
+                auctionDate: listing.auction_date,
+                monthly: listing.monthly,
+                expiry: listing.expiry,
+                ownershipType: listing.ownership_type,
+                ownershipTitle: listing.ownership_title,
+                ownershipStatus: listing.ownership_status,
+                legalDescription: listing.legal_description,
+                contactName: listing.contact_name,
+                contactPhone: listing.contact_phone,
+                contactEmail: listing.contact_email,
+                isAgent: listing.is_agent,
+                licenseNumber: listing.license_number,
+                authorizedToSell: listing.authorized_to_sell === "1",
+                agreeTerms: listing.agree_terms === "1",
+
+                isFeatured: checkIfFeatured(
+                  listing.is_featured,
+                  listing.featured_until
+                ),
+                featuredUntil: listing.featured_until,
+                createdAt: listing.created_at,
+              };
+            })
+          );
 
           return new Response(JSON.stringify({ success: true, listings: transformedListings }), {
             headers: getCorsHeaders(),
@@ -2689,11 +2731,11 @@ console.log("QUESTIONS =", questions);
         }).returning();
 
         console.log(`✅ New bid created: $${body.bidAmount} by ${user.name} for ${body.listingType}/${body.listingId}`);
-console.log("Bidder Email:", user.email);
-console.log("Bidder Name:", user.name);
-console.log("Bid Amount:", body.bidAmount);
-console.log("Listing ID:", body.listingId);
-console.log("Listing Type:", body.listingType);
+        console.log("Bidder Email:", user.email);
+        console.log("Bidder Name:", user.name);
+        console.log("Bid Amount:", body.bidAmount);
+        console.log("Listing ID:", body.listingId);
+        console.log("Listing Type:", body.listingType);
         return new Response(
           JSON.stringify({
             success: true,
@@ -3801,6 +3843,34 @@ console.log("Listing Type:", body.listingType);
           body.listingType
         );
 
+        const listingTable = getListingTable(body.listingType);
+
+        if (!listingTable) {
+          return new Response(
+            JSON.stringify({ error: "Invalid listing type" }),
+            {
+              status: 400,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
+        const listing = await db
+          .select()
+          .from(listingTable)
+          .where(eq(listingTable.id, body.listingId))
+          .get();
+
+        if (!listing) {
+          return new Response(
+            JSON.stringify({ error: "Listing not found" }),
+            {
+              status: 404,
+              headers: getCorsHeaders(),
+            }
+          );
+        }
+
         const checkout = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],
@@ -3822,6 +3892,7 @@ console.log("Listing Type:", body.listingType);
           metadata: {
             type: "auction",
             userId: auth.userId.toString(),
+            sellerId: listing.user_id.toString(),
             listingId: body.listingId.toString(),
             listingType: body.listingType,
           },
@@ -4080,8 +4151,29 @@ console.log("Listing Type:", body.listingType);
             )
           );
 
+        const listingId = Number(session.metadata?.listingId);
+        const listingType = session.metadata?.listingType as
+          | "realestate"
+          | "automobile"
+          | "business";
+
+        const sellerId = Number(session.metadata?.sellerId);
+
+        const room = await createChatRoom(db, {
+          listingId,
+          listingType,
+          buyerId: auth.userId,
+          sellerId,
+        });
+
+        console.log("💬 Chat room ready:", room.id);
+
         return new Response(
-          JSON.stringify({ success: true }),
+          JSON.stringify({
+            success: true,
+            roomId: room.id,
+            room,
+          }),
           { headers: getCorsHeaders() }  // ✅ Add CORS headers
         );
 
