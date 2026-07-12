@@ -10,6 +10,17 @@ interface Env {
     JWT_SECRET: string;
 }
 
+function getCorsHeaders() {
+    return {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods":
+            "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+        "Access-Control-Allow-Headers":
+            "Content-Type, Authorization",
+    };
+}
+
+
 export async function sendMessage(
     req: Request,
     env: Env
@@ -27,6 +38,7 @@ export async function sendMessage(
             {
                 status: 401,
                 headers: {
+                    ...getCorsHeaders(),
                     "Content-Type": "application/json",
                 },
             }
@@ -36,7 +48,6 @@ export async function sendMessage(
     try {
         const body = await req.json() as {
             roomId: number;
-            senderId: number;
             receiverId: number;
             message: string;
         };
@@ -54,6 +65,7 @@ export async function sendMessage(
                 {
                     status: 400,
                     headers: {
+                        ...getCorsHeaders(),
                         "Content-Type": "application/json",
                     },
                 }
@@ -75,6 +87,7 @@ export async function sendMessage(
                 {
                     status: 404,
                     headers: {
+                        ...getCorsHeaders(),
                         "Content-Type": "application/json",
                     },
                 }
@@ -106,6 +119,7 @@ export async function sendMessage(
             }),
             {
                 headers: {
+                    ...getCorsHeaders(),
                     "Content-Type": "application/json",
                 },
             }
@@ -122,6 +136,7 @@ export async function sendMessage(
             {
                 status: 500,
                 headers: {
+                    ...getCorsHeaders(),
                     "Content-Type": "application/json",
                 },
             }

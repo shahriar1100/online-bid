@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageBubble from "./MessageBubble";
@@ -26,6 +26,8 @@ export default function ChatWindow({ room }: Props) {
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     async function loadMessages() {
@@ -47,25 +49,38 @@ export default function ChatWindow({ room }: Props) {
     loadMessages();
   }, [room.id]);
 
-  async function handleSend() {
-    if (!text.trim()) return;
-
-    const receiverId = user.id === room.buyerId ? room.sellerId : room.buyerId;
-
-    const res = await sendMessage({
-      roomId: room.id,
-      receiverId,
-      message: text,
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
     });
+  }, [messages]);
 
-    if (res.success) {
-      setText("");
+  async function handleSend() {
+    if (!text.trim() || sending) return;
 
-      const data = await getMessages(room.id);
+    setSending(true);
 
-      if (data.success) {
-        setMessages(data.messages);
+    try {
+      const receiverId =
+        user.id === room.buyerId ? room.sellerId : room.buyerId;
+
+      const res = await sendMessage({
+        roomId: room.id,
+        receiverId,
+        message: text,
+      });
+
+      if (res.success) {
+        setText("");
+
+        const data = await getMessages(room.id);
+
+        if (data.success) {
+          setMessages(data.messages);
+        }
       }
+    } finally {
+      setSending(false);
     }
   }
   console.log("MESSAGES STATE =", messages);
@@ -99,6 +114,7 @@ export default function ChatWindow({ room }: Props) {
             />
           ))
         )}
+        <div ref={bottomRef} />
       </div>
 
       <div className="border-t bg-white p-4">
@@ -106,6 +122,7 @@ export default function ChatWindow({ room }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onSend={handleSend}
+          sending={sending}
         />
       </div>
     </div>

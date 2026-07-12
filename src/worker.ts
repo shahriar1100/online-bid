@@ -629,7 +629,8 @@ const worker = {
           role: user.role,
           verified: user.is_verified,
         });
-
+console.log("LOGIN JWT SECRET =", env.JWT_SECRET);
+console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
         const token = await signJWT(
           {
             userId: user.id,

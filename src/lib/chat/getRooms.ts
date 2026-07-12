@@ -3,6 +3,10 @@ import { eq, or } from "drizzle-orm";
 import { chatRooms } from "../../db/model/chat-room";
 import { authenticateRequest } from "../auth/authenticateRequest";
 
+import { chatMessages } from "../../db/model/chat-message";
+import { users } from "../../db/schema";
+
+
 interface Env {
   DB: D1Database;
   JWT_SECRET: string;
@@ -24,6 +28,7 @@ export async function getRooms(
 
   try {
     const auth = await authenticateRequest(req, env);
+    console.log("AUTH =", auth);
 
     if (!auth) {
       return new Response(

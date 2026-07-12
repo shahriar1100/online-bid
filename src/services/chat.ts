@@ -34,12 +34,14 @@ export interface SendMessageResponse {
 
 export async function getRooms(): Promise<GetRoomsResponse> {
   const token = localStorage.getItem("authToken") || "";
+  console.log("ROOM TOKEN =", token);
 
   const res = await fetch(`${API}/api/chat/rooms`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
   });
+  console.log("ROOM STATUS =", res.status);
 
   return (await res.json()) as GetRoomsResponse;
 }
