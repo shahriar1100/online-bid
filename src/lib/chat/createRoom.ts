@@ -4,10 +4,12 @@ import { and, eq } from "drizzle-orm";
 import { chatRooms } from "../../db/model/chat-room";
 import { users } from "../../db/schema";
 import { chatParticipants } from "../../db/model/chat-participant";
+import { authenticateRequest } from "../auth/authenticateRequest";
 
 
 interface Env {
     DB: D1Database;
+    JWT_SECRET: string;
 }
 
 export async function createChatRoom(
@@ -91,17 +93,34 @@ export async function createRoom(
 ): Promise<Response> {
     const db = drizzle(env.DB);
 
+    const auth = await authenticateRequest(req, env);
+
+    if (!auth) {
+        return new Response(
+            JSON.stringify({
+                success: false,
+                error: "Unauthorized",
+            }),
+            {
+                status: 401,
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+    }
+
     try {
         const body = await req.json() as {
             listingId: number;
             listingType: "realestate" | "automobile" | "business";
-            buyerId: number;
             sellerId: number;
         };
 
-        const { listingId, listingType, buyerId, sellerId } = body;
+        const { listingId, listingType, sellerId } = body;
+        const buyerId = auth.id;
 
-        if (!listingId || !listingType || !buyerId || !sellerId) {
+        if (!listingId || !listingType || !sellerId) {
             return new Response(
                 JSON.stringify({
                     success: false,

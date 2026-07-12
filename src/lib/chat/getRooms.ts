@@ -1,10 +1,19 @@
 import { drizzle } from "drizzle-orm/d1";
 import { eq, or } from "drizzle-orm";
 import { chatRooms } from "../../db/model/chat-room";
-
+import { authenticateRequest } from "../auth/authenticateRequest";
 
 interface Env {
   DB: D1Database;
+  JWT_SECRET: string;
+}
+
+function getCorsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  };
 }
 
 export async function getRooms(
@@ -14,24 +23,25 @@ export async function getRooms(
   const db = drizzle(env.DB);
 
   try {
-    const url = new URL(req.url);
+    const auth = await authenticateRequest(req, env);
 
-    const userId = Number(url.searchParams.get("userId"));
-
-    if (!userId) {
+    if (!auth) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Missing userId",
+          error: "Unauthorized",
         }),
         {
-          status: 400,
+          status: 401,
           headers: {
+            ...getCorsHeaders(),
             "Content-Type": "application/json",
           },
         }
       );
     }
+
+    const userId = auth.id;
 
     const rooms = await db
       .select()
@@ -49,7 +59,9 @@ export async function getRooms(
         rooms,
       }),
       {
+        status: 200,
         headers: {
+          ...getCorsHeaders(),
           "Content-Type": "application/json",
         },
       }
@@ -65,6 +77,7 @@ export async function getRooms(
       {
         status: 500,
         headers: {
+          ...getCorsHeaders(),
           "Content-Type": "application/json",
         },
       }
