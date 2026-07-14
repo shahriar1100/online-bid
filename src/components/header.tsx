@@ -1,14 +1,20 @@
-"use client"
+"use client";
 
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { FaUser } from "react-icons/fa"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "src/components/ui/select"
-import { useState, useEffect, Suspense, useRef } from "react"
-import SignupForm from "src/components/signup"
-import LoginForm from "src/components/login"
-import PasswordForm from "src/components/forgotPassword"
-import Link from "next/link"
-import { toast } from 'sonner'
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { FaUser } from "react-icons/fa";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "src/components/ui/select";
+import { useState, useEffect, Suspense, useRef } from "react";
+import SignupForm from "src/components/signup";
+import LoginForm from "src/components/login";
+import PasswordForm from "src/components/forgotPassword";
+import Link from "next/link";
+import { toast } from "sonner";
 import { AnimatedThemeToggler } from "src/components/magicui/animated-theme-toggler";
 // import logo from "../app/assets/images/tops.png"
 import useDisableBodyScroll from "../hooks";
@@ -17,88 +23,106 @@ import LocationSelector from "./geolocation";
 import { Search, X } from "lucide-react";
 import { useAppContext } from "../app/context";
 import Image from "next/image";
-import logoDark from "../app/assets/images/logo_dark.png"
-import logoWhite from "../app/assets/images/logo_white.png"
-import Loader from "./loader"
+import logoDark from "../app/assets/images/logo_dark.png";
+import logoWhite from "../app/assets/images/logo_white.png";
+import logo from "../app/assets/images/logo.jpeg";
+import Loader from "./loader";
 
 interface NavbarProps {
-  onAuthChange?: () => void
+  onAuthChange?: () => void;
 }
 interface ApiResponse {
-  success: boolean
-  listings?: Array<{ id: string; title: string; type: string, country?: string; state?: string; city?: string }>
-  error?: string
+  success: boolean;
+  listings?: Array<{
+    id: string;
+    title: string;
+    type: string;
+    country?: string;
+    state?: string;
+    city?: string;
+  }>;
+  error?: string;
 }
 
 function NavbarContent({ onAuthChange }: NavbarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParamsHook = useSearchParams()
-  const [isPopupOpen, setIsPopupOpen] = useState(false)
-  const [mode, setMode] = useState<"signup" | "login" | "forgot">("signup")
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParamsHook = useSearchParams();
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [mode, setMode] = useState<"signup" | "login" | "forgot">("signup");
 
-  const [, setIsLoggedIn] = useState(false)
-  const [user, setUser] = useState<{ email: string; name?: string; is_verified: number } | null>(null)
+  const [, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<{
+    email: string;
+    name?: string;
+    is_verified: number;
+  } | null>(null);
 
-  const [currentCategory, setCurrentCategory] = useState<string>("Browse Categories")
-  const [showDropdown, setShowDropdown] = useState(false)
+  const [currentCategory, setCurrentCategory] =
+    useState<string>("Browse Categories");
+  const [showDropdown, setShowDropdown] = useState(false);
 
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null);
   useDisableBodyScroll(isPopupOpen);
 
-  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(null)
+  const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
+    null,
+  );
   const { state } = useAppContext();
 
   useEffect(() => {
-    setSearchParams(new URLSearchParams(window.location.search))
-  }, [])
+    setSearchParams(new URLSearchParams(window.location.search));
+  }, []);
 
   useEffect(() => {
-    if (!searchParams) return
+    if (!searchParams) return;
 
-    const verified = searchParams.get("verified")
-    const email = searchParams.get("email")
+    const verified = searchParams.get("verified");
+    const email = searchParams.get("email");
 
     if (verified === "true" && email) {
-      openLogin()
-      toast.success(`Email verified: ${decodeURIComponent(email)}`)
+      openLogin();
+      toast.success(`Email verified: ${decodeURIComponent(email)}`);
 
-      const url = new URL(window.location.href)
-      url.searchParams.delete("verified")
-      url.searchParams.delete("email")
-      window.history.replaceState({}, "", url.toString())
+      const url = new URL(window.location.href);
+      url.searchParams.delete("verified");
+      url.searchParams.delete("email");
+      window.history.replaceState({}, "", url.toString());
     }
-  }, [searchParams])
+  }, [searchParams]);
 
   useEffect(() => {
     if (pathname === "/buyer/realestate") {
-      setCurrentCategory("Real Estate")
+      setCurrentCategory("Real Estate");
     } else if (pathname === "/buyer/business") {
-      setCurrentCategory("Business")
+      setCurrentCategory("Business");
     } else if (pathname === "/buyer/automobile") {
-      setCurrentCategory("Automobiles")
+      setCurrentCategory("Automobiles");
     } else {
-      setCurrentCategory("Browse Categories")
+      setCurrentCategory("Browse Categories");
     }
-  }, [pathname])
+  }, [pathname]);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user")
+    const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser))
+      setUser(JSON.parse(storedUser));
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false)
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowDropdown(false);
       }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [])
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   // useEffect(() => {
   //   const params = new URLSearchParams(window.location.search);
@@ -129,30 +153,37 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
   }, [searchParamsHook, pathname]);
 
   const openSignup = () => {
-    setMode("signup")
-    setIsPopupOpen(true)
-  }
+    setMode("signup");
+    setIsPopupOpen(true);
+  };
   const openLogin = () => {
-    setMode("login")
-    setIsPopupOpen(true)
-  }
+    setMode("login");
+    setIsPopupOpen(true);
+  };
   const openForgot = () => {
-    setMode("forgot")
-    setIsPopupOpen(true)
-  }
-  const closePopup = () => setIsPopupOpen(false)
+    setMode("forgot");
+    setIsPopupOpen(true);
+  };
+  const closePopup = () => setIsPopupOpen(false);
 
-  const handleLoginSuccess = (userData: { id: string; email: string; name?: string; is_verified: number; userType: "buyer" | "seller", token?: string; }) => {
-    setUser(userData)
-    localStorage.setItem("user", JSON.stringify(userData))
+  const handleLoginSuccess = (userData: {
+    id: string;
+    email: string;
+    name?: string;
+    is_verified: number;
+    userType: "buyer" | "seller";
+    token?: string;
+  }) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
     document.cookie = `userType=${userData.userType};path=/;max-age=172800`;
     if (userData.token) {
       localStorage.setItem("authToken", userData.token);
     }
-    setIsLoggedIn(true)
-    setIsPopupOpen(false)
+    setIsLoggedIn(true);
+    setIsPopupOpen(false);
 
-    onAuthChange?.()
+    onAuthChange?.();
     const returnPath = sessionStorage.getItem("loginReturnPath");
     sessionStorage.removeItem("loginReturnPath"); // Clean up
 
@@ -165,41 +196,46 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
     }
 
     if (userData.userType === "seller") {
-      router.push("/seller/listing")
+      router.push("/seller/listing");
     } else {
-      router.push("/") // buyer goes to home
+      router.push("/"); // buyer goes to home
     }
-  }
+  };
 
   const handleLogout = () => {
-    localStorage.removeItem("user")
-    localStorage.removeItem("authToken")
-    document.cookie = "userType=; expires=Fri, 31 Jan 1970 12:00:00 UTC; path=/";
-    setUser(null)
-    setShowDropdown(false)
-    onAuthChange?.()
-    router.push("/")
-  }
+    localStorage.removeItem("user");
+    localStorage.removeItem("authToken");
+    document.cookie =
+      "userType=; expires=Fri, 31 Jan 1970 12:00:00 UTC; path=/";
+    setUser(null);
+    setShowDropdown(false);
+    onAuthChange?.();
+    router.push("/");
+  };
 
   const getHeightClass = () => {
-    if (mode === "signup") return "h-max md:h-[607px]"
-    if (mode === "login") return "h-max md:h-[500px]"
-    if (mode === "forgot") return "h-max md:h-[500px]"
-    return ""
-  }
+    if (mode === "signup") return "h-max md:h-[607px]";
+    if (mode === "login") return "h-max md:h-[500px]";
+    if (mode === "forgot") return "h-max md:h-[500px]";
+    return "";
+  };
 
   const handleSelect = (value: string) => {
-    if (value === "real-estate") router.push("/buyer/realestate?category=Real%20Estate")
-    if (value === "Business") router.push("/buyer/business?category=Business")
-    if (value === "automobiles") router.push("/buyer/automobile?category=Automobiles")
-  }
+    if (value === "real-estate")
+      router.push("/buyer/realestate?category=Real%20Estate");
+    if (value === "Business") router.push("/buyer/business?category=Business");
+    if (value === "automobiles")
+      router.push("/buyer/automobile?category=Automobiles");
+  };
 
-  const isSellerPage = pathname.startsWith("/seller") // 🔥 check seller pages
+  const isSellerPage = pathname.startsWith("/seller"); // 🔥 check seller pages
 
   /* need to create a product autocomplete for the search bar using /api/searchListings api */
   /* onchange of searchQuery api should call to get products by search string */
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [listings, setListings] = useState<Array<{ id: string; title: string; type: string }>>([]);
+  const [listings, setListings] = useState<
+    Array<{ id: string; title: string; type: string }>
+  >([]);
   useEffect(() => {
     if (searchQuery.length === 0) return;
 
@@ -210,19 +246,19 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/searchListings?q=${encodeURIComponent(searchQuery)}`,
         {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
-        }
-      )
+        },
+      );
 
-      const data: ApiResponse = await response.json()
+      const data: ApiResponse = await response.json();
 
-      console.log('Search API Response:', data)
+      console.log("Search API Response:", data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch listings')
+        throw new Error(data.error || "Failed to fetch listings");
       }
 
       // Process the API response here
@@ -236,21 +272,20 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
         const selectedState = state.selectedState;
         const selectedCity = state.selectedCity;
 
-        if (selectedCountry && item.country !== selectedCountry.split("|")[1]) return false;
-        if (selectedState && item.state !== selectedState.split("|")[1]) return false;
+        if (selectedCountry && item.country !== selectedCountry.split("|")[1])
+          return false;
+        if (selectedState && item.state !== selectedState.split("|")[1])
+          return false;
         if (selectedCity && item.city !== selectedCity) return false;
         return true;
       });
 
       // Update the listings state with the search results
       setListings(filteredListings);
-
     }, 500); // Delay of 500ms
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
-
-
 
   return (
     <>
@@ -262,18 +297,19 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
               <Link href="/" passHref>
                 <span className="logo">
                   <Image
-                    src={logoDark}
+                    src={logo}
                     alt="iBIDS Logo"
-                    width={100}
-                    height={100}
-                    className="logo-img dark:hidden"
+                    width={70}
+                    height={70}
+                    className="h-12 w-auto dark:hidden"
                   />
+
                   <Image
-                    src={logoWhite}
+                    src={logo}
                     alt="iBIDS Logo"
-                    width={100}
-                    height={100}
-                    className="logo-img hidden dark:block"
+                    width={70}
+                    height={70}
+                    className="hidden h-12 w-auto dark:block"
                   />
                 </span>
               </Link>
@@ -306,13 +342,22 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                   <SelectValue placeholder={currentCategory} />
                 </SelectTrigger>
                 <SelectContent className="dark:bg-gray-800 dark:border-gray-600">
-                  <SelectItem value="Business" className="dark:text-white dark:hover:bg-gray-700">
+                  <SelectItem
+                    value="Business"
+                    className="dark:text-white dark:hover:bg-gray-700"
+                  >
                     Business
                   </SelectItem>
-                  <SelectItem value="real-estate" className="dark:text-white dark:hover:bg-gray-700">
+                  <SelectItem
+                    value="real-estate"
+                    className="dark:text-white dark:hover:bg-gray-700"
+                  >
                     Real Estate
                   </SelectItem>
-                  <SelectItem value="automobiles" className="dark:text-white dark:hover:bg-gray-700">
+                  <SelectItem
+                    value="automobiles"
+                    className="dark:text-white dark:hover:bg-gray-700"
+                  >
                     Automobiles
                   </SelectItem>
                 </SelectContent>
@@ -325,9 +370,7 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
           <Link href={"/help/auction"} className="text-gray-700 dark:text-gray-300 hover:text-green-600 dark:hover:text-green-400">
             Help
           </Link> */}
-            {!isSellerPage && (
-              <LocationSelector />
-            )}
+            {!isSellerPage && <LocationSelector />}
             {/* <AnimatedThemeToggler className="rounded-full p-2 transition-all hover:bg-gray-200 dark:hover:bg-gray-700" /> */}
           </div>
           {/* Right side */}
@@ -378,18 +421,19 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
               </div>
             ) : (
               // If not logged in show Login button
-              <button
-                onClick={openLogin}
-                className="loginSignupbtn"
-              >
-                <FaUser
-                  className=""
-                />
+              <button onClick={openLogin} className="loginSignupbtn">
+                <FaUser className="" />
                 Login/Signup
               </button>
             )}
             {user?.is_verified === 1 && (
-              <Suspense fallback={<div><Loader/></div>}>
+              <Suspense
+                fallback={
+                  <div>
+                    <Loader />
+                  </div>
+                }
+              >
                 <UserTypeToggle />
               </Suspense>
             )}
@@ -401,7 +445,11 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
           <div className={`custom-popup-container ${getHeightClass()}`}>
             {mode === "signup" && (
-              <SignupForm onClose={closePopup} onSwitchToLogin={openLogin} onSuccessLogin={handleLoginSuccess} />
+              <SignupForm
+                onClose={closePopup}
+                onSwitchToLogin={openLogin}
+                onSuccessLogin={handleLoginSuccess}
+              />
             )}
             {mode === "login" && (
               <LoginForm
@@ -411,7 +459,9 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                 onSuccessLogin={handleLoginSuccess}
               />
             )}
-            {mode === "forgot" && <PasswordForm onClose={closePopup} onSwitchToLogin={openLogin} />}
+            {mode === "forgot" && (
+              <PasswordForm onClose={closePopup} onSwitchToLogin={openLogin} />
+            )}
           </div>
         </div>
       )}
@@ -432,7 +482,8 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                 />
                 <button
                   type="submit"
-                  className="px-4 md:px-6 py-2 bg-[#333B48] text-white rounded-full hover:bg-[#4a5363] transition text-sm md:text-base">
+                  className="px-4 md:px-6 py-2 bg-[#333B48] text-white rounded-full hover:bg-[#4a5363] transition text-sm md:text-base"
+                >
                   <span className="effect group-hover:-translate-x-40 ease"></span>
                   <span className="relative">Search</span>
                 </button>
@@ -442,7 +493,9 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
           <div className="search-results-container">
             <div className="container overflow-y-auto h-80 custom-scrollbar">
               {listings.length === 0 ? (
-                <div className="p-2.5 md:p-4 text-gray-500 text-center">No results found.</div>
+                <div className="p-2.5 md:p-4 text-gray-500 text-center">
+                  No results found.
+                </div>
               ) : (
                 listings.map((listing, idx) => (
                   <div
@@ -450,7 +503,9 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                     className="p-2.5 md:p-4 border-b hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer"
                     onClick={() => {
                       setIsSearchOpen(false);
-                      router.push(`/buyer/${listing.type.toLowerCase()}/${listing.id}`);
+                      router.push(
+                        `/buyer/${listing.type.toLowerCase()}/${listing.id}`,
+                      );
                     }}
                   >
                     {listing.title} ({listing.type})
@@ -462,9 +517,8 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
         </div>
       )}
     </>
-  )
+  );
 }
-
 
 // 👇 Export the wrapped version as default
 export default function Navbar({ onAuthChange }: NavbarProps) {
@@ -472,6 +526,5 @@ export default function Navbar({ onAuthChange }: NavbarProps) {
     <Suspense fallback={<div></div>}>
       <NavbarContent onAuthChange={onAuthChange} />
     </Suspense>
-  )
+  );
 }
-

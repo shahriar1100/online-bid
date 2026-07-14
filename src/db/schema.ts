@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, uniqueIndex, index,} from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, uniqueIndex, index, } from "drizzle-orm/sqlite-core";
 
 
 export const users = sqliteTable("users", {
@@ -342,7 +342,7 @@ export const listingAnswers = sqliteTable(
     user_id: integer("user_id").notNull(),
 
     role: text("role", {
-      enum: ["seller", "admin", "moderator"],
+      enum: ["buyer", "seller", "admin", "moderator"],
     }).notNull(),
 
     answer: text("answer").notNull(),

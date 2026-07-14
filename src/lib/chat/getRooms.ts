@@ -1,10 +1,11 @@
 import { drizzle } from "drizzle-orm/d1";
-import { eq, or } from "drizzle-orm";
+import { eq, or, and, desc } from "drizzle-orm";
 import { chatRooms } from "../../db/model/chat-room";
 import { authenticateRequest } from "../auth/authenticateRequest";
 
 import { chatMessages } from "../../db/model/chat-message";
 import { users } from "../../db/schema";
+
 
 
 interface Env {
@@ -48,20 +49,57 @@ export async function getRooms(
 
     const userId = auth.id;
 
-    const rooms = await db
+const rooms = await db
+  .select()
+  .from(chatRooms)
+  .where(
+    and(
+      or(
+        eq(chatRooms.buyerId, userId),
+        eq(chatRooms.sellerId, userId)
+      ),
+      eq(chatRooms.roomStatus, "active"),
+      eq(chatRooms.paymentCompleted, true)
+    )
+  )
+  .orderBy(desc(chatRooms.lastMessageAt));
+
+      const roomsWithPreview = await Promise.all(
+  rooms.map(async (room) => {
+    const lastMessage = await db
       .select()
-      .from(chatRooms)
-      .where(
-        or(
-          eq(chatRooms.buyerId, userId),
-          eq(chatRooms.sellerId, userId)
-        )
-      );
+      .from(chatMessages)
+      .where(eq(chatMessages.roomId, room.id))
+      .orderBy(desc(chatMessages.createdAt))
+      .limit(1);
+
+    const otherUserId =
+      room.buyerId === userId ? room.sellerId : room.buyerId;
+
+    const otherUser = await db
+      .select({
+        name: users.name,
+      })
+      .from(users)
+      .where(eq(users.id, otherUserId))
+      .limit(1);
+
+    return {
+      ...room,
+      lastMessage: lastMessage[0]?.message ?? "No messages yet",
+      lastMessageAt:
+        lastMessage[0]?.createdAt ?? room.lastMessageAt,
+      otherUserName:
+        otherUser[0]?.name ?? `User #${otherUserId}`,
+      unread: 0,
+    };
+  })
+);
 
     return new Response(
       JSON.stringify({
         success: true,
-        rooms,
+        rooms: roomsWithPreview,
       }),
       {
         status: 200,

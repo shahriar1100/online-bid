@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "src/components/theme-provider";
 import { Toaster } from 'sonner'
 import {AppProvider} from "./context";
+import FloatingChatButton from "src/components/common/FloatingChatButton";
 
 export const metadata: Metadata = {
   title: "Ibids - Online Auction Platform",
@@ -32,6 +33,7 @@ export default function RootLayout({
             {children}
           </AppProvider>
         </ThemeProvider>
+        <FloatingChatButton />
       </body>
     </html>
   );

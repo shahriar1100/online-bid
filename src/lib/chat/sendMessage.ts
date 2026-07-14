@@ -5,6 +5,7 @@ import { chatRooms } from "../../db/model/chat-room";
 import { chatMessages } from "../../db/model/chat-message";
 import { authenticateRequest } from "../auth/authenticateRequest";
 
+
 interface Env {
     DB: D1Database;
     JWT_SECRET: string;
@@ -86,6 +87,38 @@ export async function sendMessage(
                 }),
                 {
                     status: 404,
+                    headers: {
+                        ...getCorsHeaders(),
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
+
+        if (!room.paymentCompleted || room.roomStatus !== "active") {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Chat is locked until payment is completed.",
+                }),
+                {
+                    status: 403,
+                    headers: {
+                        ...getCorsHeaders(),
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
+
+        if (room.roomStatus !== "active" || (room.paymentRequired && !room.paymentCompleted)) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Chat is locked. Complete the platform payment first.",
+                }),
+                {
+                    status: 403,
                     headers: {
                         ...getCorsHeaders(),
                         "Content-Type": "application/json",

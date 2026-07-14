@@ -1032,6 +1032,7 @@ export default function RealStateRegistrationForm({
           );
 
           upload = (await res.json()) as { url: string };
+          console.log("UPLOAD RESPONSE =", upload);
           if (upload && upload.url) {
             media.push({
               name: f.name,
@@ -1039,6 +1040,7 @@ export default function RealStateRegistrationForm({
               type: f.type,
               url: upload.url,
             });
+            console.log("MEDIA AFTER PUSH =", media);
             console.log(`Uploaded ${f.name} to ${upload.url}`);
           } else {
             console.error(`Failed to upload file: ${f.name}`);
@@ -1060,6 +1062,7 @@ export default function RealStateRegistrationForm({
         auctionType: data.auctionType || adDetails?.auctionType || "",
         duration: data.duration || adDetails?.duration || "",
         description: data.description || adDetails?.description || "",
+        
         media: media.length > 0 ? media : adDetails?.media || [],
         propertyAddress:
           data.propertyAddress || adDetails?.propertyAddress || "",
@@ -1100,6 +1103,9 @@ export default function RealStateRegistrationForm({
         agreeTerms:
           Boolean(data.agreeTerms) || Boolean(adDetails?.agreeTerms) || false,
       };
+      console.log("MEDIA =", media);
+console.log("PAYLOAD MEDIA =", payload.media);
+console.log("PAYLOAD =", payload);
 
       // Send directly to your Cloudflare Worker (bypass Next.js route)
       let headerPayload: Record<string, string> = {

@@ -19,6 +19,9 @@ import { getRooms } from "./lib/chat/getRooms";
 import { createChatRoom } from "./lib/chat/createRoom";
 import { sendMessage } from "./lib/chat/sendMessage";
 import { getMessages } from "./lib/chat/getMessages";
+import { chatRooms } from "./db/model/chat-room";
+import { getUnreadCount } from "./lib/chat/getUnreadCount";
+import { markMessagesAsRead } from "./lib/chat/markMessagesAsRead";
 
 
 export interface Env {
@@ -377,6 +380,18 @@ const worker = {
     }
 
     // ========================
+    // CHAT - UNREAD COUNT
+    // ========================
+    if (url.pathname === "/api/chat/unread-count" && req.method === "GET") {
+      return getUnreadCount(req, env);
+    }
+    // ========================
+    // CHAT - MARK AS READ
+    // ========================
+    if (url.pathname === "/api/chat/mark-read" && req.method === "POST") {
+      return markMessagesAsRead(req, env);
+    }
+    // ========================
     // SIGNUP
     // ========================
     if (url.pathname === "/auth/signup" && req.method === "POST") {
@@ -629,8 +644,8 @@ const worker = {
           role: user.role,
           verified: user.is_verified,
         });
-console.log("LOGIN JWT SECRET =", env.JWT_SECRET);
-console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
+        console.log("LOGIN JWT SECRET =", env.JWT_SECRET);
+        console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
         const token = await signJWT(
           {
             userId: user.id,
@@ -1041,6 +1056,8 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
           headers: getCorsHeaders(),
         });
       }
+      console.log("CONTACT USER =", auth.userId);
+      console.log("LISTING =", listingId, listingType);
 
       // 🔥 FINALIZE AUCTION IF NEEDED (THIS IS THE KEY)
       const session = await finalizeAuctionIfNeeded(env, listingId, listingType);
@@ -1075,6 +1092,7 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
           )
         )
         .get();
+      console.log("PAYMENT =", payment);
 
       if (!payment) {
         return new Response(JSON.stringify({ error: "Payment required" }), {
@@ -1085,6 +1103,7 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
 
 
       // 3️⃣ Get seller contact
+
       const listingTable = getListingTable(listingType);
       if (!listingTable) {
         return new Response(JSON.stringify({ error: "Invalid listing type" }), {
@@ -1092,6 +1111,24 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
           headers: getCorsHeaders(),
         });
       }
+      const listing = await db
+        .select()
+        .from(listingTable)
+        .where(eq(listingTable.id, listingId))
+        .get();
+
+      console.log("LISTING DATA =", listing);
+      console.log("LISTING USER ID =", listing?.user_id);
+
+      const sellerUser = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, listing!.user_id))
+        .get();
+
+      console.log("SELLER USER =", sellerUser);
+
+
 
       const seller = await db
         .select({
@@ -1104,6 +1141,22 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
         .where(eq(listingTable.id, listingId))
         .get();
 
+      console.log("SELLER =", seller);
+
+      const room = await db
+        .select({
+          id: chatRooms.id,
+        })
+        .from(chatRooms)
+        .where(
+          and(
+            eq(chatRooms.listingId, listingId),
+            eq(chatRooms.listingType, listingType),
+            eq(chatRooms.buyerId, auth.userId)
+          )
+        )
+        .get();
+
       if (!seller) {
         return new Response(JSON.stringify({ error: "Seller not found" }), {
           status: 404,
@@ -1111,9 +1164,15 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
         });
       }
 
-      return new Response(JSON.stringify(seller), {
-        headers: getCorsHeaders(),
-      });
+      return new Response(
+        JSON.stringify({
+          ...seller,
+          roomId: room?.id ?? null,
+        }),
+        {
+          headers: getCorsHeaders(),
+        }
+      );
     }
 
 
@@ -1156,6 +1215,7 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
             question: listingQuestions.question,
             createdAt: listingQuestions.createdAt,
             userId: listingQuestions.userId,
+            userName: users.name,
             status: listingQuestions.status,
             totalAnswers: listingQuestions.totalAnswers,
             role: users.role,
@@ -1350,17 +1410,18 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
         //   );
         // }
 
-        const result = await db
-          .insert(listingAnswers)
-          .values({
-            questionId: body.questionId,
-            listingId: body.listingId,
-            listingType: body.listingType,
-            userId: authUser.userId,
-            role: "seller",
-            answer: body.answer,
-          })
-          .returning();
+
+const result = await db
+  .insert(listingAnswers)
+  .values({
+    questionId: body.questionId,
+    listingId: body.listingId,
+    listingType: body.listingType,
+    userId: authUser.userId,
+    role: "seller",
+    answer: body.answer,
+  })
+  .returning();
 
         // Increase reply count
         const question = (
@@ -1426,8 +1487,20 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
         const db = drizzle(env.DB);
 
         const answers = await db
-          .select()
+          .select({
+            id: listingAnswers.id,
+            questionId: listingAnswers.questionId,
+            listingId: listingAnswers.listingId,
+            listingType: listingAnswers.listingType,
+            userId: listingAnswers.userId,
+            userName: users.name,
+            role: users.role,
+            answer: listingAnswers.answer,
+            createdAt: listingAnswers.createdAt,
+            isVisible: listingAnswers.isVisible,
+          })
           .from(listingAnswers)
+          .leftJoin(users, eq(users.id, listingAnswers.userId))
           .where(
             and(
               eq(listingAnswers.questionId, questionId),
@@ -3998,6 +4071,24 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
                 eq(auction_payments.user_id, Number(session.metadata?.userId))
               )
             );
+          const listingId = Number(session.metadata?.listingId);
+          const listingType = session.metadata?.listingType as
+            | "realestate"
+            | "automobile"
+            | "business";
+
+          const buyerId = Number(session.metadata?.userId);
+          const sellerId = Number(session.metadata?.sellerId);
+
+          // Create room if it doesn't exist
+          const room = await createChatRoom(db, {
+            listingId,
+            listingType,
+            buyerId,
+            sellerId,
+          });
+
+          console.log("💬 Chat room =", room.id);
           console.log(
             `✅ Auction payment completed for ${session.metadata?.listingType}/${session.metadata?.listingId}`
           );
@@ -4185,6 +4276,15 @@ console.log("LOGIN JWT SECRET LENGTH =", env.JWT_SECRET?.length);
           buyerId: auth.userId,
           sellerId,
         });
+
+        await db
+          .update(chatRooms)
+          .set({
+            paymentCompleted: true,
+            roomStatus: "active",
+            lastMessageAt: Date.now(),
+          })
+          .where(eq(chatRooms.id, room.id));
 
         console.log("💬 Chat room ready:", room.id);
 

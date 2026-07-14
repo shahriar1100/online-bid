@@ -48,8 +48,8 @@ export async function createChatRoom(
             buyerId,
             sellerId,
             paymentRequired: true,
-            paymentCompleted: true,
-            roomStatus: "active",
+            paymentCompleted: false,
+            roomStatus: "pending",
             lastMessageAt: Date.now(),
         })
         .returning();

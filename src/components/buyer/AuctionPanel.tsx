@@ -1,14 +1,15 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from "react" // ✅ CHANGE: Added useRef for WebSocket
-import Image from "next/image"
-import { Button } from "src/components/ui/button"
-import { Input } from "src/components/ui/input"
-import upcoming from "src/app/assets/images/buyer/upcoming.png"
-import { usePathname, useRouter } from "next/navigation"
-import { toast } from "sonner"
-import { saveBidToCache } from "src/util/bid"
-import { parseStorageDate } from "src/lib/date-utils"
+import { useState, useEffect, useCallback, useRef } from "react"; // ✅ CHANGE: Added useRef for WebSocket
+import Image from "next/image";
+import { Button } from "src/components/ui/button";
+import { Input } from "src/components/ui/input";
+import upcoming from "src/app/assets/images/buyer/upcoming.png";
+import { usePathname, useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { saveBidToCache } from "src/util/bid";
+import { parseStorageDate } from "src/lib/date-utils";
+
 interface AuctionPanelProps {
   listingId: number;
   listingUserId?: number;
@@ -34,10 +35,16 @@ interface HighestBid {
   avatar?: string;
 }
 
+// interface SellerContact {
+//   name: string;
+//   email: string;
+//   phone?: string;
+// }
 interface SellerContact {
   name: string;
   email: string;
   phone?: string;
+  roomId?: number;
 }
 
 interface AuthUser {
@@ -45,7 +52,6 @@ interface AuthUser {
   name: string;
   userType: "buyer" | "seller";
 }
-
 
 // ════════════════════════════════════════════════════════════════════════════════
 // ✅ NEW: WebSocket Message Types (matching your Durable Object)
@@ -60,7 +66,11 @@ interface WSInitMessage {
     endTime: number;
     startingPrice: number;
     currentBid: number;
-    highestBidder: { userId: number; userName: string; userAvatar?: string } | null;
+    highestBidder: {
+      userId: number;
+      userName: string;
+      userAvatar?: string;
+    } | null;
     bidHistory: Array<{
       id: string;
       bidAmount: number;
@@ -91,7 +101,11 @@ interface WSStatusChangeMessage {
   type: "STATUS_CHANGE";
   status: "upcoming" | "live" | "ended";
   currentBid: number;
-  highestBidder: { userId: number; userName: string; userAvatar?: string } | null;
+  highestBidder: {
+    userId: number;
+    userName: string;
+    userAvatar?: string;
+  } | null;
   endTime: number;
 }
 
@@ -141,15 +155,14 @@ type WebSocketMessage =
   | WSPongMessage
   | WSErrorMessage;
 
-
 const stringToColor = (name: string) => {
-  let hash = 0
+  let hash = 0;
   for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  const hue = Math.abs(hash) % 360
-  return `hsl(${hue}, 65%, 50%)`
-}
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 65%, 50%)`;
+};
 
 // ════════════════════════════════════════════════════════════════════════════════
 // Utility Functions (unchanged)
@@ -175,14 +188,15 @@ function formatAmountInt(amount: number | string): string {
 }
 
 function formatBidAmount(bid: string | number): string {
-  const num = typeof bid === 'number' ? bid : parseFloat(bid.replace(/[^0-9.-]/g, ''));
+  const num =
+    typeof bid === "number" ? bid : parseFloat(bid.replace(/[^0-9.-]/g, ""));
   if (isNaN(num)) return String(bid);
-  return '$' + num.toFixed(2);
+  return "$" + num.toFixed(2);
 }
 
 function getAuctionStatusAndCountdown(duration: string) {
   try {
-    const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
+    const [startStr, endStr] = duration.split(" to ").map((s) => s.trim());
     const startDate = parseStorageDate(startStr) || new Date();
     const endDate = parseStorageDate(endStr) || new Date();
     const now = new Date();
@@ -204,7 +218,12 @@ function getAuctionStatusAndCountdown(duration: string) {
 
     return { status, timeLeft, startDate, endDate };
   } catch {
-    return { status: "Upcoming" as const, timeLeft: null, startDate: new Date(), endDate: new Date() };
+    return {
+      status: "Upcoming" as const,
+      timeLeft: null,
+      startDate: new Date(),
+      endDate: new Date(),
+    };
   }
 }
 
@@ -220,7 +239,8 @@ function formatTimeLeft(ms: number): string {
   }
 
   return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -248,37 +268,39 @@ export default function AuctionPanel({
   listingUserId,
   listingType,
   listingPrice,
-  duration
+  duration,
 }: AuctionPanelProps) {
-  const [auctionState, setAuctionState] = useState<"upcoming" | "live" | "ended">("upcoming")
-  const [bidAmount, setBidAmount] = useState<number | "">("")
-  const [currentBid, setCurrentBid] = useState(listingPrice ? parseFloat(listingPrice.replace(/[^0-9.-]/g, '')) : 0)
-  const [highestBidder, setHighestBidder] = useState<HighestBid | null>(null)
-  const [bidHistory, setBidHistory] = useState<Bid[]>([])
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [countdownText, setCountdownText] = useState("")
-  const router = useRouter()
-  const pathname = usePathname()
+  const [auctionState, setAuctionState] = useState<
+    "upcoming" | "live" | "ended"
+  >("upcoming");
+  const [bidAmount, setBidAmount] = useState<number | "">("");
+  const [currentBid, setCurrentBid] = useState(
+    listingPrice ? parseFloat(listingPrice.replace(/[^0-9.-]/g, "")) : 0,
+  );
+  const [highestBidder, setHighestBidder] = useState<HighestBid | null>(null);
+  const [bidHistory, setBidHistory] = useState<Bid[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [countdownText, setCountdownText] = useState("");
+  const router = useRouter();
+  const pathname = usePathname();
   const [sellerContact, setSellerContact] = useState<{
     name: string;
     email: string;
     phone?: string;
+    roomId?: number;
   } | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   // ════════════════════════════════════════════════════════════════════════════════
   // ✅ NEW: WebSocket State and Refs
   // ════════════════════════════════════════════════════════════════════════════════
-  const [isConnected, setIsConnected] = useState(false)
-  const [connectedUsers, setConnectedUsers] = useState(0)
-  const wsRef = useRef<WebSocket | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const reconnectAttemptsRef = useRef(0)
-  const maxReconnectAttempts = 5
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState(0);
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
   const [user, setUser] = useState<AuthUser | null>(null);
-
-
-
 
   const AUCTION_FEE: Record<
     "realestate" | "business" | "automobile" | "rent",
@@ -290,8 +312,7 @@ export default function AuctionPanel({
       "The winner will be charged 4% upfront on the winning business price.",
     automobile:
       "The winner will be charged 5% upfront on the winning automobile price.",
-    rent:
-      "The winner will be charged 3% upfront on the winning rent price.",
+    rent: "The winner will be charged 3% upfront on the winning rent price.",
   };
 
   // ════════════════════════════════════════════════════════════════════════════════
@@ -310,7 +331,9 @@ export default function AuctionPanel({
       .replace("http://", "ws://");
 
     // Build WebSocket URL with query params for authentication
-    const wsUrl = new URL(`${wsBaseUrl}/api/auction/ws/${listingType}/${listingId}`);
+    const wsUrl = new URL(
+      `${wsBaseUrl}/api/auction/ws/${listingType}/${listingId}`,
+    );
 
     if (user) {
       wsUrl.searchParams.set("userId", user.id.toString());
@@ -341,7 +364,7 @@ export default function AuctionPanel({
               listingType,
               listingId,
               state.currentBid,
-              state.highestBidder?.userName
+              state.highestBidder?.userName,
             );
           }
 
@@ -359,7 +382,7 @@ export default function AuctionPanel({
           // Transform bid history
           const transformedBids: Bid[] = [...state.bidHistory]
             .reverse()
-            .map(bid => ({
+            .map((bid) => ({
               id: bid.id,
               bid: `$${bid.bidAmount}`,
               user: bid.userName,
@@ -371,7 +394,9 @@ export default function AuctionPanel({
           setBidHistory(transformedBids);
           setConnectedUsers(users);
 
-          console.log("✅ Bid data initialized from WebSocket (status calculated locally)");
+          console.log(
+            "✅ Bid data initialized from WebSocket (status calculated locally)",
+          );
           break;
         }
 
@@ -379,7 +404,11 @@ export default function AuctionPanel({
         // NEW_BID: Real-time bid update from another user
         // ─────────────────────────────────────────────────────────────────────────
         case "NEW_BID": {
-          const { bid, currentBid: newCurrentBid, highestBidder: newHighestBidder } = message;
+          const {
+            bid,
+            currentBid: newCurrentBid,
+            highestBidder: newHighestBidder,
+          } = message;
 
           // Update current bid
           setCurrentBid(newCurrentBid);
@@ -395,7 +424,7 @@ export default function AuctionPanel({
             listingType,
             listingId,
             newCurrentBid,
-            newHighestBidder.userName
+            newHighestBidder.userName,
           );
           // Add new bid to history (at the beginning for newest first)
           const newBid: Bid = {
@@ -406,16 +435,20 @@ export default function AuctionPanel({
             avatar: bid.userAvatar,
             time: bid.time,
           };
-          setBidHistory(prev => [newBid, ...prev]);
+          setBidHistory((prev) => [newBid, ...prev]);
 
           // Show toast for other users' bids
           const userStr = localStorage.getItem("user");
           const currentUser = userStr ? JSON.parse(userStr) : null;
           if (!currentUser || currentUser.id !== bid.userId) {
-            toast.info(`New bid: $${formatAmountInt(bid.bidAmount)} by ${bid.userName}`);
+            toast.info(
+              `New bid: $${formatAmountInt(bid.bidAmount)} by ${bid.userName}`,
+            );
           }
 
-          console.log(`✅ New bid received: $${bid.bidAmount} by ${bid.userName}`);
+          console.log(
+            `✅ New bid received: $${bid.bidAmount} by ${bid.userName}`,
+          );
           break;
         }
 
@@ -471,13 +504,18 @@ export default function AuctionPanel({
             if (currentUser && currentUser.id === winner.userId) {
               toast.success("🏆 Congratulations! You won the auction!");
             } else {
-              toast.info(`Auction ended! Winner: ${winner.userName} with $${formatAmountInt(winningBid)}`);
+              toast.info(
+                `Auction ended! Winner: ${winner.userName} with $${formatAmountInt(winningBid)}`,
+              );
             }
           } else {
             toast.info("Auction ended with no bids");
           }
 
-          console.log("✅ Auction ended:", winner ? `Winner: ${winner.userName}` : "No winner");
+          console.log(
+            "✅ Auction ended:",
+            winner ? `Winner: ${winner.userName}` : "No winner",
+          );
           break;
         }
 
@@ -528,7 +566,10 @@ export default function AuctionPanel({
         }
 
         default:
-          console.log("Unknown WebSocket message type:", (message as { type: string }).type);
+          console.log(
+            "Unknown WebSocket message type:",
+            (message as { type: string }).type,
+          );
       }
     } catch (error) {
       console.error("Failed to parse WebSocket message:", error);
@@ -553,7 +594,9 @@ export default function AuctionPanel({
 
     // Check max reconnect attempts
     if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-      console.log("Max reconnect attempts reached, falling back to HTTP polling");
+      console.log(
+        "Max reconnect attempts reached, falling back to HTTP polling",
+      );
       return;
     }
 
@@ -581,7 +624,9 @@ export default function AuctionPanel({
 
       ws.onclose = (event) => {
         setIsAuthenticated(false);
-        console.log(`🔌 WebSocket closed: code=${event.code}, reason=${event.reason}`);
+        console.log(
+          `🔌 WebSocket closed: code=${event.code}, reason=${event.reason}`,
+        );
         setIsConnected(false);
         wsRef.current = null;
 
@@ -594,9 +639,14 @@ export default function AuctionPanel({
         // Attempt to reconnect if not a clean close and auction is still live
         if (event.code !== 1000 && auctionState === "live") {
           reconnectAttemptsRef.current++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000); // Exponential backoff, max 30s
+          const delay = Math.min(
+            1000 * Math.pow(2, reconnectAttemptsRef.current),
+            30000,
+          ); // Exponential backoff, max 30s
 
-          console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+          console.log(
+            `Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`,
+          );
 
           reconnectTimeoutRef.current = setTimeout(() => {
             connectWebSocket();
@@ -666,7 +716,7 @@ export default function AuctionPanel({
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/auction/state/${listingType}/${listingId}`,
-          { cache: "no-store" }
+          { cache: "no-store" },
         );
 
         const data = await response.json();
@@ -693,15 +743,19 @@ export default function AuctionPanel({
       // ✅ CHANGE: Use the new Durable Object state endpoint
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/auction/state/${listingType}/${listingId}`,
-        { cache: "no-store" }
+        { cache: "no-store" },
       );
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         success: boolean;
         state?: {
           status: "upcoming" | "live" | "ended";
           currentBid: number;
-          highestBidder: { userId: number; userName: string; userAvatar?: string } | null;
+          highestBidder: {
+            userId: number;
+            userName: string;
+            userAvatar?: string;
+          } | null;
           bidHistory: Array<{
             id: string;
             bidAmount: number;
@@ -731,7 +785,7 @@ export default function AuctionPanel({
         // Transform bid history
         const transformedBids: Bid[] = [...data.state.bidHistory]
           .reverse()
-          .map(bid => ({
+          .map((bid) => ({
             id: bid.id,
             bid: `$${bid.bidAmount}`,
             user: bid.userName,
@@ -794,14 +848,15 @@ export default function AuctionPanel({
     // ════════════════════════════════════════════════════════════════════════════
     // ✅ NEW: Try WebSocket first for real-time bidding
     // ════════════════════════════════════════════════════════════════════════════
-    if (wsRef.current?.readyState === WebSocket.OPEN &&
-      isAuthenticated) {
+    if (wsRef.current?.readyState === WebSocket.OPEN && isAuthenticated) {
       console.log("📤 Sending bid via WebSocket:", bidAmount);
 
-      wsRef.current.send(JSON.stringify({
-        type: "PLACE_BID",
-        bidAmount: bidAmount,
-      }));
+      wsRef.current.send(
+        JSON.stringify({
+          type: "PLACE_BID",
+          bidAmount: bidAmount,
+        }),
+      );
       // toast.error("Connecting to auction… please wait");
       // Note: isSubmitting will be set to false when we receive BID_ACCEPTED or BID_REJECTED
       return;
@@ -825,10 +880,10 @@ export default function AuctionPanel({
           body: JSON.stringify({
             bidAmount: bidAmount,
           }),
-        }
+        },
       );
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         success?: boolean;
         bid?: {
           id: string;
@@ -854,7 +909,7 @@ export default function AuctionPanel({
             avatar: data.bid.userAvatar,
             time: "Just now",
           };
-          setBidHistory(prev => [newBid, ...prev]);
+          setBidHistory((prev) => [newBid, ...prev]);
           setCurrentBid(data.bid.bidAmount);
           setHighestBidder({
             amount: data.bid.bidAmount,
@@ -901,10 +956,10 @@ export default function AuctionPanel({
             listingId,
             listingType,
           }),
-        }
+        },
       );
 
-      const data = await res.json() as { error?: string; url?: string };
+      const data = (await res.json()) as { error?: string; url?: string };
 
       if (!res.ok) {
         toast.error(data.error || "Payment failed");
@@ -973,39 +1028,76 @@ export default function AuctionPanel({
     updateAuctionState();
     const interval = setInterval(updateAuctionState, 1000);
     return () => clearInterval(interval);
-  }, [duration, auctionState]);  // ✅ Remove isConnected dependency - always use local calculation
-
+  }, [duration, auctionState]); // ✅ Remove isConnected dependency - always use local calculation
 
   // ════════════════════════════════════════════════════════════════════════════════
   // Fetch seller contact AFTER auction ends & payment is verified
   // This also triggers finalizeAuctionIfNeeded on the server
   // ════════════════════════════════════════════════════════════════════════════════
+  // useEffect(() => {
+  //   if (auctionState !== "ended") return;
+
+  //   const token = localStorage.getItem("authToken");
+  //   if (!token) return;
+
+  //   fetch(
+  //     `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/auction/contact/${listingType}/${listingId}`,
+  //     {
+  //       headers: { Authorization: `Bearer ${token}` },
+  //     }
+  //   )
+  //     .then(res => {
+  //       if (!res.ok) return null;
+  //       return res.json() as Promise<SellerContact>;
+  //     })
+  //     .then(data => {
+  //       if (data?.name && data?.email) {
+  //         setSellerContact(data);
+  //       }
+  //     })
+  //     .catch(err => {
+  //       console.error("Failed to fetch seller contact:", err);
+  //     });
+  // }, [auctionState, listingId, listingType]);
   useEffect(() => {
     if (auctionState !== "ended") return;
 
     const token = localStorage.getItem("authToken");
     if (!token) return;
 
-    fetch(
-      `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/auction/contact/${listingType}/${listingId}`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    )
-      .then(res => {
-        if (!res.ok) return null;
-        return res.json() as Promise<SellerContact>;
-      })
-      .then(data => {
-        if (data?.name && data?.email) {
-          setSellerContact(data);
-        }
-      })
-      .catch(err => {
-        console.error("Failed to fetch seller contact:", err);
-      });
-  }, [auctionState, listingId, listingType]);
+    async function loadSellerContact() {
+      try {
+        console.log("===== LOAD SELLER CONTACT =====");
+        console.log("LISTING =", listingType, listingId);
 
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/auction/contact/${listingType}/${listingId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        console.log("CONTACT STATUS =", res.status);
+
+        const data: SellerContact = await res.json();
+
+        console.log("CONTACT RESPONSE =", data);
+
+        if (res.ok && data?.name && data?.email) {
+          console.log("SELLER CONTACT FOUND");
+          setSellerContact(data as SellerContact);
+        } else {
+          console.log("SELLER CONTACT NOT FOUND");
+        }
+      } catch (err) {
+        console.error("Failed to fetch seller contact:", err);
+      }
+    }
+
+    loadSellerContact();
+  }, [auctionState, listingId, listingType]);
 
   // ════════════════════════════════════════════════════════════════════════════════
   // UI Helpers (unchanged)
@@ -1013,21 +1105,25 @@ export default function AuctionPanel({
 
   const getStatusColor = () => {
     switch (auctionState) {
-      case "upcoming": return "badge-container default"
-      case "live": return "badge-container live"
-      case "ended": return "badge-container end"
+      case "upcoming":
+        return "badge-container default";
+      case "live":
+        return "badge-container live";
+      case "ended":
+        return "badge-container end";
     }
-  }
+  };
 
   const getStatusText = () => {
     switch (auctionState) {
-      case "upcoming": return "Upcoming"
-      case "live": return "Live"
-      case "ended": return "Ended"
+      case "upcoming":
+        return "Upcoming";
+      case "live":
+        return "Live";
+      case "ended":
+        return "Ended";
     }
-  }
-
-
+  };
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");
@@ -1042,27 +1138,26 @@ export default function AuctionPanel({
     user?.userType === "buyer" &&
     highestBidder?.userId === user?.id;
 
-  const calculatePlatformFee = (amount: number, listingType: "realestate" | "automobile" | "business" | "rent") => {
-
+  const calculatePlatformFee = (
+    amount: number,
+    listingType: "realestate" | "automobile" | "business" | "rent",
+  ) => {
     const fixed = 495;
     const onePercentOfWinningBid = amount * 0.01;
 
     switch (listingType) {
       case "realestate":
-        return (Math.max(fixed, onePercentOfWinningBid));
+        return Math.max(fixed, onePercentOfWinningBid);
       case "automobile":
-        return ((amount * 0.05).toFixed(2));
-
+        return (amount * 0.05).toFixed(2);
 
       case "business":
-        return ((amount * 0.04).toFixed(2))
+        return (amount * 0.04).toFixed(2);
 
       case "rent":
-        return ((amount * 0.03).toFixed(2))
-
+        return (amount * 0.03).toFixed(2);
     }
-  }
-
+  };
 
   // ════════════════════════════════════════════════════════════════════════════════
   // RENDER
@@ -1081,21 +1176,24 @@ export default function AuctionPanel({
             {auctionState === "live" && (
               <div className="flex items-center gap-2 mt-1">
                 <span
-                  className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500 animate-pulse" : "bg-yellow-500"
-                    }`}
+                  className={`w-2 h-2 rounded-full ${
+                    isConnected ? "bg-green-500 animate-pulse" : "bg-yellow-500"
+                  }`}
                 />
                 <span className="text-xs text-gray-400">
                   {isConnected
                     ? `Live • ${connectedUsers} watching`
-                    : "Connecting..."
-                  }
+                    : "Connecting..."}
                 </span>
               </div>
             )}
           </div>
           <div className="text-right">
             <p className="text-lg lg:text-2xl font-bold">
-              ${auctionState === "upcoming" ? "0.00" : formatAmountInt(currentBid)}
+              $
+              {auctionState === "upcoming"
+                ? "0.00"
+                : formatAmountInt(currentBid)}
             </p>
           </div>
         </div>
@@ -1128,7 +1226,11 @@ export default function AuctionPanel({
             </div>
             <div>
               <div className="sub-text2">
-                {auctionState === "upcoming" ? "Current highest Bidder" : auctionState === "live" ? "Current highest Bidder" : "Winner"}
+                {auctionState === "upcoming"
+                  ? "Current highest Bidder"
+                  : auctionState === "live"
+                    ? "Current highest Bidder"
+                    : "Winner"}
               </div>
               <div className="partipant_name">
                 {auctionState === "upcoming"
@@ -1144,13 +1246,19 @@ export default function AuctionPanel({
             </div>
             <div className="text-green-400 text-sm md:text-lg font-medium">
               {auctionState === "upcoming"
-                ? (countdownText ? `Starts in ${countdownText}` : "Starting soon")
+                ? countdownText
+                  ? `Starts in ${countdownText}`
+                  : "Starting soon"
                 : auctionState === "ended"
                   ? "Ended"
                   : countdownText}
             </div>
             <div className="sub-text2">
-              {auctionState === "upcoming" ? "Time until start" : auctionState === "ended" ? "" : "Time remaining"}
+              {auctionState === "upcoming"
+                ? "Time until start"
+                : auctionState === "ended"
+                  ? ""
+                  : "Time remaining"}
             </div>
           </div>
         </div>
@@ -1185,8 +1293,13 @@ export default function AuctionPanel({
           ) : (
             <div className="space-y-0.5 h-80 overflow-auto custom-scrollbar mb-10">
               {bidHistory.map((item) => (
-                <div key={item.id} className="grid grid-cols-3 gap-4 items-center py-1 px-2">
-                  <div className="font-medium text-sm md:text-base">{formatBidAmount(item.bid)}</div>
+                <div
+                  key={item.id}
+                  className="grid grid-cols-3 gap-4 items-center py-1 px-2"
+                >
+                  <div className="font-medium text-sm md:text-base">
+                    {formatBidAmount(item.bid)}
+                  </div>
                   <div className="flex items-center gap-2">
                     {/* <Image
                       src={item.avatar || liveDp}
@@ -1224,7 +1337,8 @@ export default function AuctionPanel({
               Notify me
             </Button>
             <p className="text-xs text-white">
-              Click on notify me and we&apos;ll email you the next time this item comes up for auction.
+              Click on notify me and we&apos;ll email you the next time this
+              item comes up for auction.
             </p>
           </div>
         )}
@@ -1232,76 +1346,101 @@ export default function AuctionPanel({
         {/* ══════════════════════════════════════════════════════════════════════ */}
         {/* Action Buttons - Live - ✅ MODIFIED: Disabled when not connected */}
         {/* ══════════════════════════════════════════════════════════════════════ */}
-        {auctionState === "live" && !isSeller && (user && listingUserId != user.id) && (
-          <div className="space-y-3">
-            <div className="paynow-container">
-              <div className="flex flex-wrap md:flex-nowrap items-center w-full gap-y-1">
-                <label className="text-sm font-medium text-gray-700 mr-2 whitespace-nowrap">
-                  Enter amount * ($)
-                </label>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  step={1}
-                  value={bidAmount}
-                  onChange={(e) => {
-                    const value = e.target.value;
+        {auctionState === "live" &&
+          !isSeller &&
+          user &&
+          listingUserId != user.id && (
+            <div className="space-y-3">
+              <div className="paynow-container">
+                <div className="flex flex-wrap md:flex-nowrap items-center w-full gap-y-1">
+                  <label className="text-sm font-medium text-gray-700 mr-2 whitespace-nowrap">
+                    Enter amount * ($)
+                  </label>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    step={1}
+                    value={bidAmount}
+                    onChange={(e) => {
+                      const value = e.target.value;
 
-                    if (value === "") {
-                      setBidAmount("");
-                      return;
-                    }
+                      if (value === "") {
+                        setBidAmount("");
+                        return;
+                      }
 
-                    const intValue = Math.floor(Number(value));
+                      const intValue = Math.floor(Number(value));
 
-                    if (!Number.isNaN(intValue)) {
-                      setBidAmount(intValue);
-                    }
-                  }}
-                  className="custom-input"
-                  placeholder={`Minimum bid $${formatAmountInt(Math.floor(currentBid) + 1)}`}
-                />
+                      if (!Number.isNaN(intValue)) {
+                        setBidAmount(intValue);
+                      }
+                    }}
+                    className="custom-input"
+                    placeholder={`Minimum bid $${formatAmountInt(Math.floor(currentBid) + 1)}`}
+                  />
+                </div>
+                {/* ✅ CHANGE: Button now shows connection status */}
+                <Button
+                  className="buyerpay"
+                  onClick={handleBidNow}
+                  disabled={isSubmitting || !isAuthenticated}
+                >
+                  {isAuthenticated ? "Bid now" : "Connecting…"}
+                </Button>
               </div>
-              {/* ✅ CHANGE: Button now shows connection status */}
-              <Button
-                className="buyerpay"
-                onClick={handleBidNow}
-                disabled={isSubmitting || !isAuthenticated}
-              >
-                {isAuthenticated ? "Bid now" : "Connecting…"}
-              </Button>
-            </div>
-            <p className="text-xs md:text-sm text-gray-300 mt-2 leading-snug text-center">
-              ℹ️ {AUCTION_FEE[listingType]}
-            </p>
-            {/* ✅ NEW: Show connection warning if disconnected */}
-            {!isConnected && auctionState === "live" && (
-              <p className="text-xs text-yellow-400 text-center">
-                ⚠️ Live updates paused. Your bid will still be placed.
+              <p className="text-xs md:text-sm text-gray-300 mt-2 leading-snug text-center">
+                ℹ️ {AUCTION_FEE[listingType]}
               </p>
-            )}
-          </div>
-        )}
+              {/* ✅ NEW: Show connection warning if disconnected */}
+              {!isConnected && auctionState === "live" && (
+                <p className="text-xs text-yellow-400 text-center">
+                  ⚠️ Live updates paused. Your bid will still be placed.
+                </p>
+              )}
+            </div>
+          )}
 
         {/* Action Buttons - Ended (unchanged) */}
         {auctionState === "ended" && isWinner && (
           <div className="space-y-3">
             {sellerContact ? (
-              <div className="bg-white text-black p-4 rounded">
-                <p><strong>Seller Name:</strong> {sellerContact.name}</p>
-                <p><strong>Email:</strong> {sellerContact.email}</p>
-                <p><strong>Phone:</strong> {sellerContact.phone}</p>
+              <div className="bg-white text-black p-4 rounded space-y-4">
+                <div>
+                  <p>
+                    <strong>Seller Name:</strong> {sellerContact.name}
+                  </p>
+                  <p>
+                    <strong>Email:</strong> {sellerContact.email}
+                  </p>
+                  <p>
+                    <strong>Phone:</strong> {sellerContact.phone}
+                  </p>
+                </div>
+
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    if (!sellerContact?.roomId) return;
+                    router.push(`/chat?roomId=${sellerContact.roomId}`);
+                  }}
+                >
+                  Chat with Seller
+                </Button>
               </div>
             ) : (
               <div className="paynow-container">
                 <div className="text-sm text-[#333b48]">
                   <p>
-                    <span className="font-semibold text-black">${calculatePlatformFee(highestBidder.amount, listingType)}</span>
-                    {" "}
+                    <span className="font-semibold text-black">
+                      ${calculatePlatformFee(highestBidder.amount, listingType)}
+                    </span>{" "}
                     (Platform Fee - {AUCTION_FEE[listingType]})
                   </p>
-                  <p>Please pay the platform fee to reveal the contact information.</p>
+                  <p>
+                    Please pay the platform fee to reveal the contact
+                    information.
+                  </p>
                 </div>
                 <Button className="buyerpay" onClick={handlePayNow}>
                   Pay now
@@ -1312,5 +1451,5 @@ export default function AuctionPanel({
         )}
       </div>
     </section>
-  )
+  );
 }

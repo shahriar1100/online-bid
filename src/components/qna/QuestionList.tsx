@@ -9,6 +9,7 @@ interface Question {
   question: string;
   createdAt: number;
   userId: number;
+  userName: string;
   status: string;
   totalAnswers: number;
   role: string;
@@ -88,7 +89,7 @@ console.log(data.questions[1]);
               id={question.id}
               listingId={listingId}
               listingType={listingType}
-              userName={`User #${question.userId}`}
+              userName={question.userName}
               role={
                 question.role?.toLowerCase() === "seller" ? "seller" : "buyer"
               }

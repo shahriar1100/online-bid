@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/d1";
 import { eq, asc } from "drizzle-orm";
+import { chatRooms } from "../../db/model/chat-room";
 import { chatMessages } from "../../db/model/chat-message";
 import { authenticateRequest } from "../auth/authenticateRequest";
 
@@ -61,12 +62,62 @@ export async function getMessages(
                 }
             );
         }
+        const room = await db
+            .select()
+            .from(chatRooms)
+            .where(eq(chatRooms.id, roomId))
+            .get();
+
+        if (!room) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Room not found",
+                }),
+                {
+                    status: 404,
+                    headers: {
+                        ...getCorsHeaders(),
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
+
+        if (
+            room.roomStatus !== "active" ||
+            (room.paymentRequired && !room.paymentCompleted)
+        ) {
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: "Chat is locked. Complete the platform payment first.",
+                }),
+                {
+                    status: 403,
+                    headers: {
+                        ...getCorsHeaders(),
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+        }
+
+        
 
         const messages = await db
             .select()
             .from(chatMessages)
             .where(eq(chatMessages.roomId, roomId))
             .orderBy(asc(chatMessages.createdAt));
+
+            console.log(
+  messages.map((m) => ({
+    id: m.id,
+    isRead: m.isRead,
+    seenAt: m.seenAt,
+  }))
+);
 
         return new Response(
             JSON.stringify({

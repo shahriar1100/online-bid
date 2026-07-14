@@ -14,6 +14,7 @@ import { Check } from "lucide-react";
 import { Swiper as SwiperClass } from "swiper/types";
 import AuctionPanel from "src/components/buyer/AuctionPanel";
 import Loader from "src/components/loader";
+import QuestionSection from "src/components/qna/QuestionSection";
 
 type ListingStatus = "Upcoming" | "Live" | "End";
 
@@ -70,12 +71,17 @@ const getValidImages = (media: any[] | undefined): string[] => {
   for (const item of media) {
     if (!item) continue;
     if (typeof item === "string" && item.trim() !== "") out.push(item);
-    else if (typeof item === "object" && typeof item.url === "string" && item.url.trim() !== "") out.push(item.url);
+    else if (
+      typeof item === "object" &&
+      typeof item.url === "string" &&
+      item.url.trim() !== ""
+    )
+      out.push(item.url);
   }
   return out;
 };
 
-export const runtime = 'edge';
+export const runtime = "edge";
 
 export default function BusinessDetails() {
   const params = useParams();
@@ -94,7 +100,7 @@ export default function BusinessDetails() {
         const parsed = JSON.parse(cached) as BusinessListing;
         setListing(parsed);
       }
-    } catch { }
+    } catch {}
   }, [id]);
 
   // 2) Fetch all business listings, then find by id
@@ -109,10 +115,10 @@ export default function BusinessDetails() {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             cache: "no-store",
-          }
+          },
         );
 
-        const data = await response.json() as {
+        const data = (await response.json()) as {
           success: boolean;
           error?: string;
           listings?: BusinessListing[];
@@ -123,7 +129,7 @@ export default function BusinessDetails() {
         }
 
         const found = (data.listings || []).find(
-          (l: BusinessListing) => Number(l.id) === id
+          (l: BusinessListing) => Number(l.id) === id,
         );
 
         if (!found) {
@@ -135,11 +141,13 @@ export default function BusinessDetails() {
         // Update cache
         try {
           sessionStorage.setItem(`biz_listing_${id}`, JSON.stringify(found));
-        } catch { }
+        } catch {}
       } catch (err) {
         console.error("Error fetching listing:", err);
         if (!listing) {
-          setError(err instanceof Error ? err.message : "Failed to load listing");
+          setError(
+            err instanceof Error ? err.message : "Failed to load listing",
+          );
         }
       } finally {
         setLoading(false);
@@ -257,7 +265,8 @@ export default function BusinessDetails() {
               )}
 
               <p className="section-desc">
-                Category: <span className="font-medium">{listing.subCategory}</span>
+                Category:{" "}
+                <span className="font-medium">{listing.subCategory}</span>
               </p>
 
               <h1 className="section-title">{listing.name}</h1>
@@ -271,36 +280,69 @@ export default function BusinessDetails() {
 
               {/* Business details */}
               <div className="mt-6">
-                <h2 className="headline">
-                  Business details:
-                </h2>
+                <h2 className="headline">Business details:</h2>
                 <ul className="list-disc pl-6 space-y-1">
-                  {listing.businessAddress && <li>Address: {listing.businessAddress}</li>}
+                  {listing.businessAddress && (
+                    <li>Address: {listing.businessAddress}</li>
+                  )}
                   {listing.businessCity && listing.businessState && (
                     <li>
                       Location: {listing.businessCity}, {listing.businessState}
                     </li>
                   )}
-                  {listing.businessPincode && <li>Zip/Postal Code: {listing.businessPincode}</li>}
-                  {listing.businessCountry && <li>Country: {listing.businessCountry}</li>}
-                  {listing.builtInYear && <li>Established: {listing.builtInYear}</li>}
-                  {listing.revenue && <li>Annual Revenue: ${listing.revenue}</li>}
-                  {listing.profit && <li>Annual Profit/EBITDA: ${listing.profit}</li>}
-                  {listing.assets && <li>Assets included in sale: {listing.assets}</li>}
+                  {listing.businessPincode && (
+                    <li>Zip/Postal Code: {listing.businessPincode}</li>
+                  )}
+                  {listing.businessCountry && (
+                    <li>Country: {listing.businessCountry}</li>
+                  )}
+                  {listing.builtInYear && (
+                    <li>Established: {listing.builtInYear}</li>
+                  )}
+                  {listing.revenue && (
+                    <li>Annual Revenue: ${listing.revenue}</li>
+                  )}
+                  {listing.profit && (
+                    <li>Annual Profit/EBITDA: ${listing.profit}</li>
+                  )}
+                  {listing.assets && (
+                    <li>Assets included in sale: {listing.assets}</li>
+                  )}
                   {listing.inventory && <li>Inventory: {listing.inventory}</li>}
-                  {listing.inventoryValue && <li> Estimated Inventory Value: ${listing.inventoryValue}</li>}
-                  {listing.employes && <li>No of Employees: {listing.employes}</li>}
-                  {listing.involvement && <li>Owner Involvement: {listing.involvement}</li>}
+                  {listing.inventoryValue && (
+                    <li>
+                      {" "}
+                      Estimated Inventory Value: ${listing.inventoryValue}
+                    </li>
+                  )}
+                  {listing.employes && (
+                    <li>No of Employees: {listing.employes}</li>
+                  )}
+                  {listing.involvement && (
+                    <li>Owner Involvement: {listing.involvement}</li>
+                  )}
                   {listing.price && <li>Auction Price: ${listing.price}</li>}
-                  {listing.relocatable && <li>Business Relocatable: {listing.relocatable}</li>}
-                  {listing.homebase && <li>Business Home-based: {listing.homebase}</li>}
+                  {listing.relocatable && (
+                    <li>Business Relocatable: {listing.relocatable}</li>
+                  )}
+                  {listing.homebase && (
+                    <li>Business Home-based: {listing.homebase}</li>
+                  )}
                   {listing.franchise && <li>Franchise: {listing.franchise}</li>}
-                  {listing.nameFranchise && <li>Franchise Name: {listing.nameFranchise}</li>}
+                  {listing.nameFranchise && (
+                    <li>Franchise Name: {listing.nameFranchise}</li>
+                  )}
                   {listing.premises && <li>Premises: {listing.premises}</li>}
-                  {listing.monthly && <li>Monthly Lease/Expenses: {listing.monthly}</li>}
-                  {listing.facilitySize && <li>Facility Size: {listing.facilitySize} sq. ft</li>}
+                  {listing.monthly && (
+                    <li>Monthly Lease/Expenses: {listing.monthly}</li>
+                  )}
+                  {listing.facilitySize && (
+                    <li>Facility Size: {listing.facilitySize} sq. ft</li>
+                  )}
                   {/* {listing.expiry && <li>Lease Expiry: {listing.expiry}</li>} */}
-                  {listing.expiry && <li>Lease Expiry:{listing.expiry.split(".")[0]}</li>}
+                  {listing.expiry && (
+                    <li>Lease Expiry:{listing.expiry.split(".")[0]}</li>
+                  )}
                 </ul>
               </div>
 
@@ -328,14 +370,14 @@ export default function BusinessDetails() {
 
               {listing.description && (
                 <div className="mt-6">
-                  <h2 className="headline">
-                    Description:
-                  </h2>
+                  <h2 className="headline">Description:</h2>
                   <p className="text-gray-700 dark:text-gray-300">
                     {listing.description}
                   </p>
                 </div>
               )}
+              {/* Q&A Section */}
+              <QuestionSection listingId={listing.id} listingType="business" />
             </div>
           </section>
 

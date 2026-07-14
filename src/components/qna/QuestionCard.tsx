@@ -20,8 +20,9 @@ import ReplyForm from "./ReplyForm";
 interface Answer {
   id: number;
   answer: string;
-  role: "seller" | "admin" | "moderator";
+  role: string;
   userId: number;
+  userName: string;
   createdAt: number;
 }
 
@@ -65,6 +66,11 @@ export default function QuestionCard({
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [showReplies, setShowReplies] = useState(false);
   const [showReplyForm, setShowReplyForm] = useState(false);
+  const [currentReplyCount, setCurrentReplyCount] = useState(replyCount);
+
+  useEffect(() => {
+    setCurrentReplyCount(replyCount);
+  }, [replyCount]);
 
   async function loadReplies() {
     try {
@@ -114,8 +120,8 @@ export default function QuestionCard({
     "
       >
         <CardHeader className="pb-4">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               <div
                 className="
                 flex
@@ -144,7 +150,7 @@ export default function QuestionCard({
                     {role.charAt(0).toUpperCase() + role.slice(1)}
                   </Badge>
 
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <div className="flex flex-wrap items-center gap-1 text-[11px] md:text-xs text-muted-foreground">
                     <Clock3 className="h-3.5 w-3.5" />
                     {createdAt}
                   </div>
@@ -180,7 +186,7 @@ export default function QuestionCard({
           "
           >
             <MessageCircle className="h-4 w-4" />
-            {replyCount} {replyCount === 1 ? "Reply" : "Replies"}
+            {currentReplyCount} {currentReplyCount === 1 ? "Reply" : "Replies"}
           </button>
 
           <Button
@@ -209,20 +215,24 @@ export default function QuestionCard({
       </Card>
 
       {showReplyForm && (
-<ReplyForm
-  questionId={id}
-  listingId={listingId}
-  listingType={listingType}
-  onSuccess={() => {
-    setShowReplyForm(false);
-    loadReplies();
-    setShowReplies(true);
-  }}
-/>
-)}
+        <ReplyForm
+          questionId={id}
+          listingId={listingId}
+          listingType={listingType}
+          onSuccess={() => {
+            setShowReplyForm(false);
+            loadReplies();
+            setShowReplies(true);
+
+            setCurrentReplyCount((prev) => prev + 1);
+
+            onReply?.();
+          }}
+        />
+      )}
 
       {showReplies && (
-        <div className="ml-8 mt-4 space-y-3">
+        <div className="ml-2 mt-4 space-y-3 md:ml-8">
           {loadingReplies ? (
             <p className="text-sm text-muted-foreground">Loading replies...</p>
           ) : answers.length === 0 ? (
@@ -231,7 +241,7 @@ export default function QuestionCard({
             answers.map((answer) => (
               <AnswerCard
                 key={answer.id}
-                userName={`Seller #${answer.userId}`}
+                userName={answer.userName}
                 answer={answer.answer}
                 createdAt={new Date(answer.createdAt).toLocaleString()}
                 role={answer.role}

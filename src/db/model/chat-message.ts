@@ -23,6 +23,7 @@ export const chatMessages = sqliteTable(
 
     editedAt: integer("edited_at"),
     isRead: integer("is_read", { mode: "boolean" }).default(false).notNull(),
+    seenAt: integer("seen_at"),
     isDeleted: integer("is_deleted", { mode: "boolean" }).default(false).notNull(),
     createdAt: integer("created_at")
       .$defaultFn(() => Date.now())

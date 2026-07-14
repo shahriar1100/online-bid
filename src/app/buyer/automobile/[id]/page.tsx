@@ -15,6 +15,7 @@ import { Check } from "lucide-react";
 import { Swiper as SwiperClass } from "swiper/types";
 import AuctionPanel from "src/components/buyer/AuctionPanel";
 import Loader from "src/components/loader";
+import QuestionSection from "src/components/qna/QuestionSection";
 
 type ListingStatus = "Upcoming" | "Live" | "End";
 
@@ -60,7 +61,7 @@ interface AutomobileListing {
   createdAt?: number;
 }
 
-export const runtime = 'edge';
+export const runtime = "edge";
 
 // Helper to normalize media into valid image URLs
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,7 +71,12 @@ const getValidImages = (media: any[] | undefined): string[] => {
   for (const item of media) {
     if (!item) continue;
     if (typeof item === "string" && item.trim() !== "") out.push(item);
-    else if (typeof item === "object" && typeof item.url === "string" && item.url.trim() !== "") out.push(item.url);
+    else if (
+      typeof item === "object" &&
+      typeof item.url === "string" &&
+      item.url.trim() !== ""
+    )
+      out.push(item.url);
   }
   return out;
 };
@@ -92,7 +98,7 @@ export default function AutomobileDetails() {
         const parsed = JSON.parse(cached) as AutomobileListing;
         setListing(parsed);
       }
-    } catch { }
+    } catch {}
   }, [id]);
 
   // 2) Fetch all, then find by id (works with current /api/automobile)
@@ -107,10 +113,10 @@ export default function AutomobileDetails() {
             method: "GET",
             headers: { "Content-Type": "application/json" },
             cache: "no-store",
-          }
+          },
         );
 
-        const data = await response.json() as {
+        const data = (await response.json()) as {
           success: boolean;
           error?: string;
           listings?: AutomobileListing[];
@@ -121,7 +127,7 @@ export default function AutomobileDetails() {
         }
 
         const found = (data.listings || []).find(
-          (l: AutomobileListing) => Number(l.id) === id
+          (l: AutomobileListing) => Number(l.id) === id,
         );
 
         if (!found) {
@@ -133,11 +139,13 @@ export default function AutomobileDetails() {
         // Update cache for back/forward navigation
         try {
           sessionStorage.setItem(`auto_listing_${id}`, JSON.stringify(found));
-        } catch { }
+        } catch {}
       } catch (err) {
         console.error("Error fetching listing:", err);
         if (!listing) {
-          setError(err instanceof Error ? err.message : "Failed to load listing");
+          setError(
+            err instanceof Error ? err.message : "Failed to load listing",
+          );
         }
       } finally {
         setLoading(false);
@@ -255,7 +263,8 @@ export default function AutomobileDetails() {
               )}
 
               <p className="section-desc">
-                Category: <span className="font-medium">{listing.subCategory}</span>
+                Category:{" "}
+                <span className="font-medium">{listing.subCategory}</span>
               </p>
 
               <h1 className="section-title">{listing.name}</h1>
@@ -268,9 +277,7 @@ export default function AutomobileDetails() {
               </p> */}
 
               <div className="mt-6">
-                <h2 className="headline">
-                  Vehicle details:
-                </h2>
+                <h2 className="headline">Vehicle details:</h2>
                 <ul className="list-disc pl-6 space-y-1">
                   {listing.make && <li>Make: {listing.make}</li>}
                   {listing.model && <li>Model: {listing.model}</li>}
@@ -278,7 +285,9 @@ export default function AutomobileDetails() {
                   {listing.builtInYear && <li>Year: {listing.builtInYear}</li>}
                   {listing.body && <li>Body Type: {listing.body}</li>}
                   {listing.fuel && <li>Fuel Type: {listing.fuel}</li>}
-                  {listing.transmission && <li>Transmission: {listing.transmission}</li>}
+                  {listing.transmission && (
+                    <li>Transmission: {listing.transmission}</li>
+                  )}
                   {listing.engine && <li>Engine: {listing.engine}</li>}
                   {listing.drive && <li>Drive: {listing.drive}</li>}
                   {/* {listing.odometer && (
@@ -287,41 +296,50 @@ export default function AutomobileDetails() {
                     </li>
                   )} */}
                   {listing.odometer && (
-                    <li>
-                      Odometer/Mileage: {listing.odometer}
-                    </li>
+                    <li>Odometer/Mileage: {listing.odometer}</li>
                   )}
                   {listing.odometerUnit && (
-                    <li>
-                      Unit: {listing.odometerUnit}
-                    </li>
+                    <li>Unit: {listing.odometerUnit}</li>
                   )}
                   {listing.condition && <li>Condition: {listing.condition}</li>}
                   {listing.automobileCity && listing.automobileState && (
                     <li>
-                      Location: {listing.automobileCity}, {listing.automobileState}
+                      Location: {listing.automobileCity},{" "}
+                      {listing.automobileState}
                     </li>
                   )}
-                  {listing.automobilePincode && <li>PIN Code: {listing.automobilePincode}</li>}
-                  {listing.automobileCountry && <li>Country: {listing.automobileCountry}</li>}
+                  {listing.automobilePincode && (
+                    <li>PIN Code: {listing.automobilePincode}</li>
+                  )}
+                  {listing.automobileCountry && (
+                    <li>Country: {listing.automobileCountry}</li>
+                  )}
                   {listing.warranty && <li>Warranty: {listing.warranty}</li>}
-                  {listing.warrantyDetails && <li>Warranty Details: {listing.warrantyDetails}</li>}
+                  {listing.warrantyDetails && (
+                    <li>Warranty Details: {listing.warrantyDetails}</li>
+                  )}
                 </ul>
               </div>
               <div className="mt-6">
                 <h2 className="headline">Ownership & History</h2>
                 <ul className="list-disc pl-6 space-y-1">
-                  {listing.owner !== undefined && <li>Previous Owners: {listing.owner}</li>}
-                  {listing.accidentHistory && <li>Accident History: {listing.accidentHistory}</li>}
-                  {listing.serviceHistory && <li>Service History: {listing.serviceHistory}</li>}
-                  {listing.vinNumber && <li>VIN Number: {listing.vinNumber}</li>}
+                  {listing.owner !== undefined && (
+                    <li>Previous Owners: {listing.owner}</li>
+                  )}
+                  {listing.accidentHistory && (
+                    <li>Accident History: {listing.accidentHistory}</li>
+                  )}
+                  {listing.serviceHistory && (
+                    <li>Service History: {listing.serviceHistory}</li>
+                  )}
+                  {listing.vinNumber && (
+                    <li>VIN Number: {listing.vinNumber}</li>
+                  )}
                 </ul>
               </div>
               {listing.description && (
                 <div className="mt-6">
-                  <h2 className="headline">
-                    Description:
-                  </h2>
+                  <h2 className="headline">Description:</h2>
                   <p className="text-gray-700 dark:text-gray-300">
                     {listing.description}
                   </p>
@@ -330,9 +348,7 @@ export default function AutomobileDetails() {
 
               {listing.mobileFeatures && listing.mobileFeatures.length > 0 && (
                 <div className="mt-6">
-                  <h2 className="headline">
-                    Features:
-                  </h2>
+                  <h2 className="headline">Features:</h2>
                   <ul className="space-y-2">
                     {listing.mobileFeatures.map((feature, i) => (
                       <li key={i} className="flex items-center gap-2">
@@ -343,6 +359,11 @@ export default function AutomobileDetails() {
                   </ul>
                 </div>
               )}
+              {/* Q&A Section */}
+              <QuestionSection
+                listingId={listing.id}
+                listingType="automobile"
+              />
             </div>
           </section>
 
