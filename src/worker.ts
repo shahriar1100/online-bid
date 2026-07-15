@@ -629,7 +629,7 @@ const worker = {
             headers: getCorsHeaders(),
           });
         }
-        user.is_verified = true;
+        // user.is_verified = true;
         if (!user.is_verified) {
           return new Response(JSON.stringify({ error: "Email not verified. Please check your inbox." }), {
             status: 403,
