@@ -586,6 +586,7 @@ const worker = {
     // ========================
     // LOGIN
     // ========================
+    console.log("LOGIN API VERSION = JULY15");
     if (url.pathname === "/auth/login" && req.method === "POST") {
       try {
         let body: LoginBody;
