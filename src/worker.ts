@@ -1412,17 +1412,17 @@ const worker = {
         // }
 
 
-const result = await db
-  .insert(listingAnswers)
-  .values({
-    questionId: body.questionId,
-    listingId: body.listingId,
-    listingType: body.listingType,
-    userId: authUser.userId,
-    role: "seller",
-    answer: body.answer,
-  })
-  .returning();
+        const result = await db
+          .insert(listingAnswers)
+          .values({
+            questionId: body.questionId,
+            listingId: body.listingId,
+            listingType: body.listingType,
+            userId: authUser.userId,
+            role: "seller",
+            answer: body.answer,
+          })
+          .returning();
 
         // Increase reply count
         const question = (
@@ -1777,10 +1777,25 @@ const result = await db
         return new Response(JSON.stringify({ success: true, listing: inserted }), {
           headers: getCorsHeaders(),
         });
-      } catch (e) {
-        console.error("API Error:", e);
+      } catch (e: any) {
+        console.error("========== REAL ESTATE API ERROR ==========");
+        console.error("MESSAGE:", e?.message);
+        console.error("CAUSE:", e?.cause);
+        console.error("STACK:", e?.stack);
+        console.error("FULL ERROR:", e);
+
         const msg = e instanceof Error ? e.message : "Internal server error";
-        return new Response(JSON.stringify({ error: msg }), { status: 500, headers: getCorsHeaders() });
+
+        return new Response(
+          JSON.stringify({
+            error: msg,
+            details: e?.cause ?? null,
+          }),
+          {
+            status: 500,
+            headers: getCorsHeaders(),
+          }
+        );
       }
     }
 
