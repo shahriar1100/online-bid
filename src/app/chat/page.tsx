@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-
 import { getRooms } from "src/services/chat";
-
 import ChatSidebar from "../../components/chat/ChatSidebar";
 import ChatWindow from "../../components/chat/ChatWindow";
 import EmptyChat from "../../components/chat/EmptyChat";
-
 import Navbar from "src/components/header";
 
-export default function ChatPage() {
+export const dynamic = "force-dynamic";
+
+function ChatContent() {
   const searchParams = useSearchParams();
   const roomId = Number(searchParams.get("roomId"));
 
@@ -29,13 +28,11 @@ export default function ChatPage() {
         setSelectedRoom((prev: any) => {
           if (roomId) {
             const target = data.rooms.find((room: any) => room.id === roomId);
-
             if (target) return target;
           }
 
           if (prev) {
             const updated = data.rooms.find((room: any) => room.id === prev.id);
-
             if (updated) return updated;
           }
 
@@ -57,12 +54,10 @@ export default function ChatPage() {
     <>
       <Navbar />
 
-      {/* */}
       <main className="pt-20 md:pt-24 bg-background">
         <div className="container mx-auto px-4 py-6">
           <div className="h-[calc(100vh-110px)] md:h-[calc(100vh-170px)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
             <div className="flex h-full">
-              {/* Sidebar */}
               <aside
                 className={`${
                   selectedRoom ? "hidden md:block" : "block"
@@ -76,7 +71,6 @@ export default function ChatPage() {
                 />
               </aside>
 
-              {/* Chat */}
               <section
                 className={`${
                   selectedRoom ? "flex" : "hidden md:flex"
@@ -97,5 +91,13 @@ export default function ChatPage() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ChatContent />
+    </Suspense>
   );
 }
