@@ -138,13 +138,13 @@ export async function sendMessage(
                 messageType: "text",
             })
             .returning();
-            
+
         await createNotificationRecord(db, {
             userId: body.receiverId,
             listingId: room.listingId,
             type: "message",
             title: "You have received a new message.",
-            link: `/chat/${body.roomId}`,
+            link: `/chat?roomId=${body.roomId}`,
         });
 
         await db

@@ -33,6 +33,7 @@ import {
   getUnreadCount,
   type Notification,
 } from "../services/notification.service";
+import { markNotificationAsRead } from "../services/notification.service";
 
 interface NavbarProps {
   onAuthChange?: () => void;
@@ -76,23 +77,19 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-  function handleClickOutside(e: MouseEvent) {
-    if (
-      notificationRef.current &&
-      !notificationRef.current.contains(e.target as Node)
-    ) {
-      setShowNotifications(false);
+    function handleClickOutside(e: MouseEvent) {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(e.target as Node)
+      ) {
+        setShowNotifications(false);
+      }
     }
-  }
 
-  document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
 
-  return () =>
-    document.removeEventListener(
-      "mousedown",
-      handleClickOutside
-    );
-}, []);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -271,6 +268,31 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
     onAuthChange?.();
     router.push("/");
   };
+
+  async function handleNotificationClick(item: Notification) {
+    try {
+      if (!item.is_read) {
+        await markNotificationAsRead(item.id);
+      }
+
+      const unreadRes = await getUnreadCount();
+      if (unreadRes.success) {
+        setUnreadCount(unreadRes.count);
+      }
+
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === item.id ? { ...n, is_read: true } : n)),
+      );
+
+      setShowNotifications(false);
+
+      if (item.link) {
+        router.push(item.link);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   const getHeightClass = () => {
     if (mode === "signup") return "h-max md:h-[607px]";
@@ -484,6 +506,7 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                         notifications.map((item) => (
                           <div
                             key={item.id}
+                            onClick={() => handleNotificationClick(item)}
                             className={`px-4 py-3 border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
                               !item.is_read
                                 ? "bg-blue-50 dark:bg-gray-800/40"
