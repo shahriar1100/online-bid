@@ -49,7 +49,7 @@ export async function getUnreadCount(): Promise<GetUnreadCountResponse> {
   return (await res.json()) as GetUnreadCountResponse;
 }
 
-export async function markAsRead(
+export async function markNotificationAsRead(
   notificationId: number
 ): Promise<NotificationResponse> {
   const token = localStorage.getItem("authToken") || "";
