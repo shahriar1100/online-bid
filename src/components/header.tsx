@@ -93,6 +93,11 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const LIMIT = 10;
+
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
 
   useDisableBodyScroll(isPopupOpen);
 
@@ -182,30 +187,44 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
     }
   }, [searchParamsHook, pathname]);
 
-  useEffect(() => {
-    if (!user) return;
+  async function loadNotifications(currentOffset = 0, append = false) {
+    if (loadingNotifications) return;
 
-    async function loadNotifications() {
-      try {
-        const [notificationRes, unreadRes] = await Promise.all([
-          getNotifications(),
-          getUnreadCount(),
-        ]);
+    setLoadingNotifications(true);
 
-        if (notificationRes.success) {
-          console.log("NOTIFICATIONS =", notificationRes.notifications);
+    try {
+      const [notificationRes, unreadRes] = await Promise.all([
+        getNotifications(LIMIT, currentOffset),
+        getUnreadCount(),
+      ]);
+
+      if (notificationRes.success) {
+        if (append) {
+          setNotifications((prev) => [
+            ...prev,
+            ...notificationRes.notifications,
+          ]);
+        } else {
           setNotifications(notificationRes.notifications);
         }
 
-        if (unreadRes.success) {
-          setUnreadCount(unreadRes.count);
-        }
-      } catch (err) {
-        console.error("Failed to load notifications", err);
+        setHasMore(notificationRes.notifications.length === LIMIT);
       }
-    }
 
-    loadNotifications();
+      if (unreadRes.success) {
+        setUnreadCount(unreadRes.count);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!user) return;
+
+    loadNotifications(0, false);
   }, [user]);
 
   const openSignup = () => {
@@ -292,6 +311,14 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
     } catch (err) {
       console.error(err);
     }
+  }
+
+  async function loadPreviousNotifications() {
+    const nextOffset = offset + LIMIT;
+
+    await loadNotifications(nextOffset, true);
+
+    setOffset(nextOffset);
   }
 
   const getHeightClass = () => {
@@ -528,6 +555,17 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                         ))
                       )}
                     </div>
+                    {hasMore && (
+                      <button
+                        onClick={loadPreviousNotifications}
+                        disabled={loadingNotifications}
+                        className="w-full py-3 text-sm font-medium text-blue-600 hover:bg-gray-100 dark:hover:bg-gray-800 border-t dark:border-gray-700"
+                      >
+                        {loadingNotifications
+                          ? "Loading..."
+                          : "See previous notifications"}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

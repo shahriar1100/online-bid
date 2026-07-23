@@ -26,6 +26,11 @@ export async function getNotifications(
 ): Promise<Response> {
     const db = drizzle(env.DB);
 
+    const url = new URL(req.url);
+
+    const limit = Number(url.searchParams.get("limit") ?? "10");
+    const offset = Number(url.searchParams.get("offset") ?? "0");
+
     const auth = await authenticateRequest(req, env);
 
     if (!auth) {
@@ -50,7 +55,8 @@ export async function getNotifications(
             .from(notifications)
             .where(eq(notifications.user_id, auth.id))
             .orderBy(desc(notifications.created_at))
-            .limit(20);
+            .limit(limit)
+            .offset(offset);
 
         return new Response(
             JSON.stringify({

@@ -25,14 +25,20 @@ export interface NotificationResponse {
   success: boolean;
 }
 
-export async function getNotifications(): Promise<GetNotificationsResponse> {
+export async function getNotifications(
+  limit = 10,
+  offset = 0
+): Promise<GetNotificationsResponse> {
   const token = localStorage.getItem("authToken") || "";
 
-  const res = await fetch(`${API}/api/notifications`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const res = await fetch(
+    `${API}/api/notifications?limit=${limit}&offset=${offset}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
   return (await res.json()) as GetNotificationsResponse;
 }
