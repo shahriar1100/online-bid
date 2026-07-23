@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { chatRooms } from "../../db/model/chat-room";
 import { chatMessages } from "../../db/model/chat-message";
 import { authenticateRequest } from "../auth/authenticateRequest";
+import { createNotificationRecord } from "../notifications/createNotification";
 
 
 interface Env {
@@ -137,6 +138,14 @@ export async function sendMessage(
                 messageType: "text",
             })
             .returning();
+            
+        await createNotificationRecord(db, {
+            userId: body.receiverId,
+            listingId: room.listingId,
+            type: "message",
+            title: "You have received a new message.",
+            link: `/chat/${body.roomId}`,
+        });
 
         await db
             .update(chatRooms)

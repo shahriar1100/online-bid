@@ -23,10 +23,16 @@ import LocationSelector from "./geolocation";
 import { Search, X } from "lucide-react";
 import { useAppContext } from "../app/context";
 import Image from "next/image";
-import logoDark from "../app/assets/images/logo_dark.png";
-import logoWhite from "../app/assets/images/logo_white.png";
+// import logoDark from "../app/assets/images/logo_dark.png";
+// import logoWhite from "../app/assets/images/logo_white.png";
 import logo from "../app/assets/images/logo.jpeg";
 import Loader from "./loader";
+import { Bell } from "lucide-react";
+import {
+  getNotifications,
+  getUnreadCount,
+  type Notification,
+} from "../services/notification.service";
 
 interface NavbarProps {
   onAuthChange?: () => void;
@@ -64,6 +70,33 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // 🔔 Notification State
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+  function handleClickOutside(e: MouseEvent) {
+    if (
+      notificationRef.current &&
+      !notificationRef.current.contains(e.target as Node)
+    ) {
+      setShowNotifications(false);
+    }
+  }
+
+  document.addEventListener("mousedown", handleClickOutside);
+
+  return () =>
+    document.removeEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+}, []);
+
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
   useDisableBodyScroll(isPopupOpen);
 
   const [searchParams, setSearchParams] = useState<URLSearchParams | null>(
@@ -151,6 +184,32 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
       window.history.replaceState({}, "", url.toString());
     }
   }, [searchParamsHook, pathname]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    async function loadNotifications() {
+      try {
+        const [notificationRes, unreadRes] = await Promise.all([
+          getNotifications(),
+          getUnreadCount(),
+        ]);
+
+        if (notificationRes.success) {
+          console.log("NOTIFICATIONS =", notificationRes.notifications);
+          setNotifications(notificationRes.notifications);
+        }
+
+        if (unreadRes.success) {
+          setUnreadCount(unreadRes.count);
+        }
+      } catch (err) {
+        console.error("Failed to load notifications", err);
+      }
+    }
+
+    loadNotifications();
+  }, [user]);
 
   const openSignup = () => {
     setMode("signup");
@@ -318,17 +377,17 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
               <Link href="/seller/listing" passHref>
                 <span className="logo">
                   <Image
-                    src={logoDark}
+                    src={logo}
                     alt="iBIDS Logo"
-                    width={100}
-                    height={100}
+                    width={60}
+                    height={60}
                     className="logo-img dark:hidden"
                   />
                   <Image
-                    src={logoWhite}
+                    src={logo}
                     alt="iBIDS Logo"
-                    width={100}
-                    height={100}
+                    width={60}
+                    height={60}
                     className="logo-img hidden dark:block"
                   />
                 </span>
@@ -393,6 +452,64 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
             )}
             <AnimatedThemeToggler className="rounded-full p-2 transition-all hover:bg-gray-200 dark:hover:bg-gray-700" />
             {/*  If logged in show user icon with dropdown */}
+
+            {/* 🔔 Notification Bell এখানে */}
+            {user && (
+              <div className="relative" ref={notificationRef}>
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                >
+                  <Bell className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-600 text-white text-[10px] flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {showNotifications && (
+                  <div className="absolute right-0 mt-1 w-[360px] bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-50 overflow-hidden">
+                    <div className="px-4 py-3 border-b dark:border-gray-700 font-semibold">
+                      Notifications
+                    </div>
+
+                    <div className="max-h-96 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-8 text-center text-sm text-gray-500">
+                          No notifications yet.
+                        </div>
+                      ) : (
+                        notifications.map((item) => (
+                          <div
+                            key={item.id}
+                            className={`px-4 py-3 border-b dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer ${
+                              !item.is_read
+                                ? "bg-blue-50 dark:bg-gray-800/40"
+                                : ""
+                            }`}
+                          >
+                            <div className="flex justify-between">
+                              <span className="text-sm">{item.title}</span>
+
+                              {!item.is_read && (
+                                <span className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
+                              )}
+                            </div>
+
+                            <p className="text-xs text-gray-500 mt-1">
+                              {String(item.created_at)}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {user ? (
               <div className="relative" ref={dropdownRef}>
                 <FaUser

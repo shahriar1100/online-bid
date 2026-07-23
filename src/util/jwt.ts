@@ -92,7 +92,15 @@ export async function verifyJWT(
     signatureBytes,
     dataBytes
   );
+
+  console.log("JWT VALID =", valid);
+console.log("HEADER =", headerB64);
+console.log("PAYLOAD B64 =", payloadB64);
+
   if (!valid) return null;
+  
+console.log("PAYLOAD JSON =", decoder.decode(b64urlDecodeToUint8Array(payloadB64)));
+
 
   const payloadJson = decoder.decode(b64urlDecodeToUint8Array(payloadB64));
   const payload = JSON.parse(payloadJson) as JWTPayload;

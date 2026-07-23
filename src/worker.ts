@@ -22,6 +22,9 @@ import { getMessages } from "./lib/chat/getMessages";
 import { chatRooms } from "./db/model/chat-room";
 import { getUnreadCount } from "./lib/chat/getUnreadCount";
 import { markMessagesAsRead } from "./lib/chat/markMessagesAsRead";
+import { getNotifications } from "./lib/notifications/getNotifications";
+import { getUnreadCount as getNotificationUnreadCount } from "./lib/notifications/getUnreadCount";
+import { markNotificationAsRead } from "./lib/notifications/markNotificationAsRead";
 
 
 export interface Env {
@@ -120,6 +123,11 @@ async function finalizeAuctionIfNeeded(
   const db = drizzle(env.DB);
   const now = Math.floor(Date.now() / 1000);
 
+  console.log("========== FINALIZE ==========");
+console.log("listingId =", listingId);
+console.log("listingType =", listingType);
+console.log("NOW =", now);
+
   console.log(`\n🔍 ===== finalizeAuctionIfNeeded =====`);
   console.log(`🔍 listingId: ${listingId}, listingType: ${listingType}`);
   console.log(`🔍 Current time (unix): ${now} (${new Date(now * 1000).toISOString()})`);
@@ -135,6 +143,8 @@ async function finalizeAuctionIfNeeded(
       )
     )
     .get();
+
+    console.log("EXISTING SESSION =", existingSession);
 
   console.log(`🔍 Existing session: ${existingSession ? JSON.stringify(existingSession) : 'null'}`);
 
@@ -391,6 +401,35 @@ const worker = {
     if (url.pathname === "/api/chat/mark-read" && req.method === "POST") {
       return markMessagesAsRead(req, env);
     }
+
+    // ========================
+    // NOTIFICATIONS - GET ALL
+    // ========================
+    if (url.pathname === "/api/notifications" && req.method === "GET") {
+      return getNotifications(req, env);
+    }
+
+    // ========================
+    // NOTIFICATIONS - UNREAD COUNT
+    // ========================
+    if (
+      url.pathname === "/api/notifications/unread-count" &&
+      req.method === "GET"
+    ) {
+      return getNotificationUnreadCount(req, env);
+    }
+
+    // ========================
+    // NOTIFICATIONS - MARK AS READ
+    // ========================
+    if (
+      url.pathname === "/api/notifications/read" &&
+      req.method === "POST"
+    ) {
+      return markNotificationAsRead(req, env);
+    }
+
+
     // ========================
     // SIGNUP
     // ========================
@@ -3979,7 +4018,12 @@ const worker = {
             }
           );
         }
+console.log("FRONTEND_BASE_URL =", env.FRONTEND_BASE_URL);
 
+console.log(
+  "SUCCESS URL =",
+  `${env.FRONTEND_BASE_URL}/sucessPay?type=auction&listingId=${body.listingId}&listingType=${body.listingType}&session_id={CHECKOUT_SESSION_ID}`
+);
         const checkout = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],

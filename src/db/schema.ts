@@ -399,3 +399,4 @@ export const listingAnswers = sqliteTable(
 export { chatRooms } from "./model/chat-room";
 export { chatMessages } from "./model/chat-message";
 export { chatParticipants } from "./model/chat-participant";
+export { notifications } from "./model/notification";

@@ -1206,14 +1206,11 @@
 } */
 
 .logo {
-    width: 145px;
-    height: auto;
     display: block;
 }
 
 .logo .logo-img {
-  width: 100%;
-  height: 100%;
+    height: auto;
 }
 
 .loginSignupbtn {
