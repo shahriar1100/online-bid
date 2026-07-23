@@ -222,6 +222,24 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
   }
 
   useEffect(() => {
+  if (!user) return;
+
+  const interval = setInterval(async () => {
+    try {
+      const unreadRes = await getUnreadCount();
+
+      if (unreadRes.success) {
+        setUnreadCount(unreadRes.count);
+      }
+    } catch (err) {
+      console.error("Unread count refresh failed", err);
+    }
+  }, 3000);
+
+  return () => clearInterval(interval);
+}, [user]);
+
+  useEffect(() => {
     if (!user) return;
 
     loadNotifications(0, false);
@@ -506,7 +524,16 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
             {user && (
               <div className="relative" ref={notificationRef}>
                 <button
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={async () => {
+                    const nextState = !showNotifications;
+
+                    setShowNotifications(nextState);
+
+                    if (nextState) {
+                      setOffset(0);
+                      await loadNotifications(0, false);
+                    }
+                  }}
                   className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                 >
                   <Bell className="w-5 h-5 text-gray-700 dark:text-gray-200" />
