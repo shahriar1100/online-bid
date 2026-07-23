@@ -287,7 +287,7 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
       setShowNotifications(false);
 
       if (item.link) {
-        router.push(item.link);
+        router.push("/chat");
       }
     } catch (err) {
       console.error(err);
