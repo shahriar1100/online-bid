@@ -60,7 +60,7 @@ console.log("Query offset:", offset);
             .where(eq(notifications.user_id, auth.id))
             .orderBy(desc(notifications.created_at))
             .limit(2)
-            .offset(offset);
+            .offset(0);
 
             console.log("Rows returned:", rows.length);
 
