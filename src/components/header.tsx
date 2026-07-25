@@ -199,6 +199,14 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
       ]);
 
       if (notificationRes.success) {
+
+ console.log("LIMIT:", LIMIT);
+  console.log("Received:", notificationRes.notifications.length);
+  console.log(
+    "hasMore:",
+    notificationRes.notifications.length === LIMIT
+  );
+
         if (append) {
           setNotifications((prev) => [
             ...prev,
