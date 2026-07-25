@@ -11,6 +11,7 @@ import paymentcard from "../app/assets/images/payments-card.png"
 // import logo from "../app/assets/images/tops.png"
 import logoDark from "../app/assets/images/logo_dark.png"
 import logoWhite from "../app/assets/images/logo_white.png"
+import logo from "../app/assets/images/logo.jpeg";
 
 export default function Footer() {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -70,17 +71,17 @@ export default function Footer() {
               <div className="flex items-center">
                 <span className="logo mb-2.5">
                   <Image
-                    src={logoDark}
+                    src={logo}
                     alt="iBIDS Logo"
-                    width={100}
-                    height={100}
+                    width={70}
+                    height={70}
                     className="logo-img dark:hidden"
                   />
                   <Image
-                    src={logoWhite}
+                    src={logo}
                     alt="iBIDS Logo"
-                    width={100}
-                    height={100}
+                    width={70}
+                    height={70}
                     className="logo-img hidden dark:block"
                   />
                 </span>
