@@ -50,6 +50,10 @@ export async function getNotifications(
     }
 
     try {
+
+        console.log("Query limit:", limit);
+console.log("Query offset:", offset);
+
         const rows = await db
             .select()
             .from(notifications)
@@ -57,6 +61,8 @@ export async function getNotifications(
             .orderBy(desc(notifications.created_at))
             .limit(limit)
             .offset(offset);
+
+            console.log("Rows returned:", rows.length);
 
         return new Response(
             JSON.stringify({
