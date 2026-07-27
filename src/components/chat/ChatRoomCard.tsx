@@ -34,19 +34,23 @@ export default function ChatRoomCard({
 
       {/* Content */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900 dark:text-white truncate">{name}</h3>
+        <div className="flex items-center">
+          <h3 className="min-w-0 flex-1 truncate font-semibold text-gray-900 dark:text-white">
+            {name}
+          </h3>
 
-         <span className="text-xs text-gray-500 dark:text-gray-400">
+          <span className="ml-2 shrink-0 text-xs text-gray-500 dark:text-gray-400">
             {time}
           </span>
         </div>
 
-        <div className="mt-1 flex items-center justify-between">
-          <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{lastMessage}</p>
+        <div className="mt-1 flex items-center">
+          <p className="min-w-0 flex-1 truncate text-sm text-gray-500 dark:text-gray-400">
+            {lastMessage}
+          </p>
 
           {unread > 0 && (
-            <span className="ml-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white">
+            <span className="ml-2 shrink-0 flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs font-medium text-white">
               {unread}
             </span>
           )}
