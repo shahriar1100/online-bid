@@ -33,7 +33,7 @@ export default function ChatRoomCard({
       </div>
 
       {/* Content */}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-hidden">
         <div className="flex items-center">
           <h3 className="min-w-0 flex-1 truncate font-semibold text-gray-900 dark:text-white">
             {name}
@@ -45,7 +45,7 @@ export default function ChatRoomCard({
         </div>
 
         <div className="mt-1 flex items-center">
-          <p className="min-w-0 flex-1 truncate text-sm text-gray-500 dark:text-gray-400">
+          <p className="min-w-0 flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
             {lastMessage}
           </p>
 
