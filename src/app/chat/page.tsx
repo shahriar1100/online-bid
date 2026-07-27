@@ -61,7 +61,7 @@ function ChatContent() {
               <aside
                 className={`${
                   selectedRoom ? "hidden md:block" : "block"
-                } w-full md:w-[340px] border-r border-border`}
+                } w-full md:w-[340px] md:flex-shrink-0 border-r border-border overflow-hidden`}
               >
                 <ChatSidebar
                   rooms={rooms}
@@ -74,7 +74,7 @@ function ChatContent() {
               <section
                 className={`${
                   selectedRoom ? "flex" : "hidden md:flex"
-                } min-h-0 flex-1`}
+                } min-h-0 min-w-0 flex-1 overflow-hidden`}
               >
                 {selectedRoom ? (
                   <ChatWindow
