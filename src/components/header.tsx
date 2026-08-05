@@ -35,6 +35,7 @@ import {
 } from "../services/notification.service";
 import { markNotificationAsRead } from "../services/notification.service";
 import { formatNotificationTime } from "../util/time";
+import { MessageCircle } from "lucide-react";
 
 interface NavbarProps {
   onAuthChange?: () => void;
@@ -572,11 +573,15 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                                 : ""
                             }`}
                           >
-                            <div className="flex justify-between">
-                              <span className="text-sm">{item.title}</span>
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-2">
+                                <MessageCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+
+                                <span className="text-sm">{item.title}</span>
+                              </div>
 
                               {!item.is_read && (
-                                <span className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
+                                <span className="w-2 h-2 rounded-full bg-blue-500 mt-2 ml-2 shrink-0" />
                               )}
                             </div>
 
