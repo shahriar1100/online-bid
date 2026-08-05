@@ -35,6 +35,8 @@ interface AuctionState {
     listingOwnerId: number;
     finalizedInDb?: boolean;
     winnerEmailSent?: boolean;
+    endingSoonNotificationSent?: boolean;
+    sellerEndingSoonNotificationSent?: boolean;
 }
 
 interface WebSocketMessage {
@@ -542,8 +544,79 @@ export class AuctionRoom extends DurableObject {
         }
     }
 
+    private async checkEndingSoonNotification(): Promise<void> {
+
+    if (!this.auctionState) return;
+
+    const now = Math.floor(Date.now() / 1000);
+
+    const secondsRemaining = this.auctionState.endTime - now;
+
+    // 10 minutes = 600 seconds
+    if (
+        secondsRemaining <= 600 &&
+        secondsRemaining > 0 &&
+        !this.auctionState.endingSoonNotificationSent
+    ) {
+
+        console.log("⏰ Sending Ending Soon notifications...");
+
+        // Buyers
+        const buyers = await this.env.DB.prepare(`
+            SELECT DISTINCT user_id
+            FROM bids
+            WHERE listing_id = ?
+            AND listing_type = ?
+        `).bind(
+            this.auctionState.listingId,
+            this.auctionState.listingType
+        ).all();
+
+        for (const buyer of buyers.results as { user_id: number }[]) {
+
+            await this.env.DB.prepare(`
+                INSERT INTO notifications
+                (user_id, listing_id, type, title, link, is_read, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `).bind(
+                buyer.user_id,
+                this.auctionState.listingId,
+                "auction_ending",
+                "⏰ The auction you're bidding on ends in 10 minutes.",
+                `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                0,
+                Date.now()
+            ).run();
+        }
+
+        // Seller
+        await this.env.DB.prepare(`
+            INSERT INTO notifications
+            (user_id, listing_id, type, title, link, is_read, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+            this.auctionState.listingOwnerId,
+            this.auctionState.listingId,
+            "auction_ending",
+            "⏰ Your auction will end in 10 minutes.",
+            `/seller/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+            0,
+            Date.now()
+        ).run();
+
+        this.auctionState.endingSoonNotificationSent = true;
+
+        await this.state.storage.put("auctionState", this.auctionState);
+
+        console.log("✅ Ending Soon notifications inserted");
+
+    }
+
+}
+
     private async checkAndFinalizeIfEnded(): Promise<void> {
         if (!this.auctionState) return;
+        await this.checkEndingSoonNotification();
         this.updateStatusBasedOnTime();
 
         if (this.auctionState.status === "ended") {
@@ -567,7 +640,8 @@ export class AuctionRoom extends DurableObject {
         if (!this.auctionState) return;
 
         console.log(`🏁 Finalizing auction ${this.auctionState.listingType}/${this.auctionState.listingId}`);
-
+console.log("🚀 finalizeAuction started");
+console.log("Winner =", this.auctionState.highestBidder);
         await this.env.DB.prepare(`
             INSERT INTO auction_sessions (listing_id, listing_type, start_time, end_time, starting_price, current_bid, status, winner_user_id, winning_bid, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, 'ended', ?, ?, unixepoch(), unixepoch())
@@ -587,6 +661,68 @@ export class AuctionRoom extends DurableObject {
             this.auctionState.highestBidder?.userId || null,
             this.auctionState.highestBidder ? this.auctionState.currentBid : null
         ).run();
+
+
+        // =============================
+        // Winner / Loser Notifications
+        // =============================
+
+        if (this.auctionState.highestBidder) {
+            console.log("🚀 Inserting winner notification...");
+
+            // Winner notification
+            await this.env.DB.prepare(`
+        INSERT INTO notifications
+        (user_id, listing_id, type, title, link, is_read, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+                this.auctionState.highestBidder.userId,
+                this.auctionState.listingId,
+                "auction_won",
+                "🏆 Congratulations! You won the auction.",
+                `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                0,
+                Date.now()
+            ).run();
+
+            console.log("✅ Winner notification inserted");
+
+
+            // Loser notifications
+            const losers = await this.env.DB.prepare(`
+        SELECT DISTINCT user_id
+        FROM bids
+        WHERE listing_id = ?
+        AND listing_type = ?
+        AND user_id != ?
+    `).bind(
+                this.auctionState.listingId,
+                this.auctionState.listingType,
+                this.auctionState.highestBidder.userId
+            ).all();
+
+            for (const loser of losers.results as { user_id: number }[]) {
+
+                await this.env.DB.prepare(`
+            INSERT INTO notifications
+            (user_id, listing_id, type, title, link, is_read, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).bind(
+                    loser.user_id,
+                    this.auctionState.listingId,
+                    "auction_lost",
+                    "❌ The auction has ended. You didn't win this auction.",
+                    `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                    0,
+                    Date.now()
+                ).run();
+
+            }
+
+            console.log("✅ Loser notifications inserted");
+            console.log("🚀 Winner/Loser notification block finished");
+
+        }
 
         this.broadcast({
             type: "AUCTION_ENDED",
@@ -937,11 +1073,30 @@ export class AuctionRoom extends DurableObject {
             previousHighestBidder &&
             previousHighestBidder.userId !== data.userId
         ) {
+
+            // Email
             await this.sendOutbidEmail(
                 previousHighestBidder.userId,
                 previousBidAmount,
                 data.bidAmount
             );
+
+            // Notification
+            await this.env.DB.prepare(`
+        INSERT INTO notifications
+        (user_id, listing_id, type, title, link, is_read, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+                previousHighestBidder.userId,
+                this.auctionState.listingId,
+                "outbid",
+                "🔔 You've been outbid. Place a higher bid to stay in the lead.",
+                `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                0,
+                Date.now()
+            ).run();
+
+            console.log("✅ Outbid notification inserted");
         }
 
         return { success: true, bid };

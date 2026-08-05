@@ -179,6 +179,8 @@ async function finalizeAuctionIfNeeded(
       .limit(1)
       .get();
 
+      console.log("HIGHEST BID FROM DB =", highestBid);
+
     const winnerUserId = highestBid?.user_id ?? null;
     const winningBidAmount = highestBid?.bid_amount ?? null;
     const currentBidAmount = highestBid?.bid_amount ?? existingSession.current_bid;
@@ -2834,9 +2836,9 @@ const worker = {
 
 
           console.log("========== BID DEBUG ==========");
-console.log("Listing Type =", body.listingType);
-console.log("Listing ID =", body.listingId);
-console.log("Seller ID =", sellerId);
+          console.log("Listing Type =", body.listingType);
+          console.log("Listing ID =", body.listingId);
+          console.log("Seller ID =", sellerId);
         }
 
         if (body.listingType === "automobile") {
@@ -2905,35 +2907,35 @@ console.log("Seller ID =", sellerId);
 
 
 
-if (body.listingType === "realestate") {
-  const listing = await db
-    .select()
-    .from(real_estate_listings)
-    .where(eq(real_estate_listings.id, body.listingId))
-    .get();
+        if (body.listingType === "realestate") {
+          const listing = await db
+            .select()
+            .from(real_estate_listings)
+            .where(eq(real_estate_listings.id, body.listingId))
+            .get();
 
-  sellerId = listing?.user_id ?? null;
-}
+          sellerId = listing?.user_id ?? null;
+        }
 
-if (body.listingType === "automobile") {
-  const listing = await db
-    .select()
-    .from(automobile_listings)
-    .where(eq(automobile_listings.id, body.listingId))
-    .get();
+        if (body.listingType === "automobile") {
+          const listing = await db
+            .select()
+            .from(automobile_listings)
+            .where(eq(automobile_listings.id, body.listingId))
+            .get();
 
-  sellerId = listing?.user_id ?? null;
-}
+          sellerId = listing?.user_id ?? null;
+        }
 
-if (body.listingType === "business") {
-  const listing = await db
-    .select()
-    .from(business_listings)
-    .where(eq(business_listings.id, body.listingId))
-    .get();
+        if (body.listingType === "business") {
+          const listing = await db
+            .select()
+            .from(business_listings)
+            .where(eq(business_listings.id, body.listingId))
+            .get();
 
-  sellerId = listing?.user_id ?? null;
-}
+          sellerId = listing?.user_id ?? null;
+        }
 
         // Create the bid
         const now = new Date();
@@ -2948,8 +2950,8 @@ if (body.listingType === "business") {
         }).returning();
 
         console.log("Seller ID =", sellerId);
-console.log("Buyer ID =", authUser.userId);
-console.log("Condition =", sellerId && sellerId !== authUser.userId);
+        console.log("Buyer ID =", authUser.userId);
+        console.log("Condition =", sellerId && sellerId !== authUser.userId);
 
         if (sellerId && sellerId !== authUser.userId) {
           await db.insert(notifications).values({
@@ -4154,6 +4156,20 @@ console.log("Condition =", sellerId && sellerId !== authUser.userId);
             stripe_session_id: checkout.id,
             status: "pending",
           });
+          // ================================
+          // Payment Required Notification
+          // ================================
+          await db.insert(notifications).values({
+            user_id: auth.userId,
+            listing_id: body.listingId,
+            type: "payment_required",
+            title: "💳 You won the auction. Complete your payment.",
+            link: `/buyer/${body.listingType}/${body.listingId}`,
+            is_read: false,
+            created_at: new Date(),
+          });
+
+          console.log("✅ Payment Required notification inserted");
         }
 
         return new Response(
@@ -4239,6 +4255,23 @@ console.log("Condition =", sellerId && sellerId !== authUser.userId);
           });
 
           console.log("💬 Chat room =", room.id);
+
+          // ================================
+          // Payment Successful Notification
+          // ================================
+          await db.insert(notifications).values({
+            user_id: buyerId,
+            listing_id: listingId,
+            type: "payment_successful",
+            title: "✅ Payment completed successfully.",
+            link: `/buyer/${listingType}/${listingId}`,
+            is_read: false,
+            created_at: new Date(),
+          });
+
+          console.log("✅ Payment success notification inserted");
+
+
           console.log(
             `✅ Auction payment completed for ${session.metadata?.listingType}/${session.metadata?.listingId}`
           );
