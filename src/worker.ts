@@ -25,7 +25,7 @@ import { markMessagesAsRead } from "./lib/chat/markMessagesAsRead";
 import { getNotifications } from "./lib/notifications/getNotifications";
 import { getUnreadCount as getNotificationUnreadCount } from "./lib/notifications/getUnreadCount";
 import { markNotificationAsRead } from "./lib/notifications/markNotificationAsRead";
-import { notifications} from "./db/schema";
+import { notifications } from "./db/schema";
 
 
 export interface Env {
@@ -2908,6 +2908,9 @@ const worker = {
           bid_amount: Number(body.bidAmount),
           created_at: now,
         }).returning();
+
+        console.log("Seller ID =", sellerId);
+        console.log("Buyer ID =", authUser.userId);
 
 
         if (sellerId && sellerId !== authUser.userId) {
