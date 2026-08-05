@@ -34,6 +34,7 @@ import {
   type Notification,
 } from "../services/notification.service";
 import { markNotificationAsRead } from "../services/notification.service";
+import { formatNotificationTime } from "../util/time";
 
 interface NavbarProps {
   onAuthChange?: () => void;
@@ -199,13 +200,9 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
       ]);
 
       if (notificationRes.success) {
-
- console.log("LIMIT:", LIMIT);
-  console.log("Received:", notificationRes.notifications.length);
-  console.log(
-    "hasMore:",
-    notificationRes.notifications.length === LIMIT
-  );
+        console.log("LIMIT:", LIMIT);
+        console.log("Received:", notificationRes.notifications.length);
+        console.log("hasMore:", notificationRes.notifications.length === LIMIT);
 
         if (append) {
           setNotifications((prev) => [
@@ -230,22 +227,22 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
   }
 
   useEffect(() => {
-  if (!user) return;
+    if (!user) return;
 
-  const interval = setInterval(async () => {
-    try {
-      const unreadRes = await getUnreadCount();
+    const interval = setInterval(async () => {
+      try {
+        const unreadRes = await getUnreadCount();
 
-      if (unreadRes.success) {
-        setUnreadCount(unreadRes.count);
+        if (unreadRes.success) {
+          setUnreadCount(unreadRes.count);
+        }
+      } catch (err) {
+        console.error("Unread count refresh failed", err);
       }
-    } catch (err) {
-      console.error("Unread count refresh failed", err);
-    }
-  }, 3000);
+    }, 3000);
 
-  return () => clearInterval(interval);
-}, [user]);
+    return () => clearInterval(interval);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -584,7 +581,7 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                             </div>
 
                             <p className="text-xs text-gray-500 mt-1">
-                              {String(item.created_at)}
+                              {formatNotificationTime(item.created_at)}
                             </p>
                           </div>
                         ))

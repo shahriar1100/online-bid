@@ -52,17 +52,17 @@ export async function getNotifications(
     try {
 
         console.log("Query limit:", limit);
-console.log("Query offset:", offset);
+        console.log("Query offset:", offset);
 
         const rows = await db
             .select()
             .from(notifications)
             .where(eq(notifications.user_id, auth.id))
             .orderBy(desc(notifications.created_at))
-            .limit(2)
-            .offset(0);
-
-            console.log("Rows returned:", rows.length);
+            .limit(limit)
+            .offset(offset);
+            
+        console.log("Rows returned:", rows.length);
 
         return new Response(
             JSON.stringify({

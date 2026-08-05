@@ -50,14 +50,19 @@ export interface SendMessageResponse {
 
 export async function getRooms(): Promise<GetRoomsResponse> {
     const token = localStorage.getItem("authToken") || "";
-    console.log("ROOM TOKEN =", token);
 
     const res = await fetch(`${API}/api/chat/rooms`, {
         headers: {
             Authorization: `Bearer ${token}`,
         },
     });
-    console.log("ROOM STATUS =", res.status);
+
+    if (res.status === 401) {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
+
+    throw new Error("SESSION_EXPIRED");
+}
 
     return (await res.json()) as GetRoomsResponse;
 }
