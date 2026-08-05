@@ -25,6 +25,7 @@ import { markMessagesAsRead } from "./lib/chat/markMessagesAsRead";
 import { getNotifications } from "./lib/notifications/getNotifications";
 import { getUnreadCount as getNotificationUnreadCount } from "./lib/notifications/getUnreadCount";
 import { markNotificationAsRead } from "./lib/notifications/markNotificationAsRead";
+import { notifications} from "./db/schema";
 
 
 export interface Env {
@@ -124,9 +125,9 @@ async function finalizeAuctionIfNeeded(
   const now = Math.floor(Date.now() / 1000);
 
   console.log("========== FINALIZE ==========");
-console.log("listingId =", listingId);
-console.log("listingType =", listingType);
-console.log("NOW =", now);
+  console.log("listingId =", listingId);
+  console.log("listingType =", listingType);
+  console.log("NOW =", now);
 
   console.log(`\n🔍 ===== finalizeAuctionIfNeeded =====`);
   console.log(`🔍 listingId: ${listingId}, listingType: ${listingType}`);
@@ -144,7 +145,7 @@ console.log("NOW =", now);
     )
     .get();
 
-    console.log("EXISTING SESSION =", existingSession);
+  console.log("EXISTING SESSION =", existingSession);
 
   console.log(`🔍 Existing session: ${existingSession ? JSON.stringify(existingSession) : 'null'}`);
 
@@ -2820,6 +2821,38 @@ const worker = {
 
         const db = drizzle(env.DB);
 
+        let sellerId: number | null = null;
+
+        if (body.listingType === "realestate") {
+          const [listing] = await db
+            .select({ user_id: real_estate_listings.user_id })
+            .from(real_estate_listings)
+            .where(eq(real_estate_listings.id, body.listingId))
+            .limit(1);
+
+          sellerId = listing?.user_id ?? null;
+        }
+
+        if (body.listingType === "automobile") {
+          const [listing] = await db
+            .select({ user_id: automobile_listings.user_id })
+            .from(automobile_listings)
+            .where(eq(automobile_listings.id, body.listingId))
+            .limit(1);
+
+          sellerId = listing?.user_id ?? null;
+        }
+
+        if (body.listingType === "business") {
+          const [listing] = await db
+            .select({ user_id: business_listings.user_id })
+            .from(business_listings)
+            .where(eq(business_listings.id, body.listingId))
+            .limit(1);
+
+          sellerId = listing?.user_id ?? null;
+        }
+
         // Get user info
         const [user] = await db
           .select()
@@ -2875,6 +2908,19 @@ const worker = {
           bid_amount: Number(body.bidAmount),
           created_at: now,
         }).returning();
+
+
+        if (sellerId && sellerId !== authUser.userId) {
+          await db.insert(notifications).values({
+            user_id: sellerId,
+            listing_id: body.listingId,
+            type: "bid",
+            title: `${user.name} placed a bid on your auction.`,
+            link: `/buyer/${body.listingType}/${body.listingId}`,
+            is_read: false,
+            created_at: new Date(),
+          });
+        }
 
         console.log(`✅ New bid created: $${body.bidAmount} by ${user.name} for ${body.listingType}/${body.listingId}`);
         console.log("Bidder Email:", user.email);
@@ -4018,12 +4064,12 @@ const worker = {
             }
           );
         }
-console.log("FRONTEND_BASE_URL =", env.FRONTEND_BASE_URL);
+        console.log("FRONTEND_BASE_URL =", env.FRONTEND_BASE_URL);
 
-console.log(
-  "SUCCESS URL =",
-  `${env.FRONTEND_BASE_URL}/sucessPay?type=auction&listingId=${body.listingId}&listingType=${body.listingType}&session_id={CHECKOUT_SESSION_ID}`
-);
+        console.log(
+          "SUCCESS URL =",
+          `${env.FRONTEND_BASE_URL}/sucessPay?type=auction&listingId=${body.listingId}&listingType=${body.listingType}&session_id={CHECKOUT_SESSION_ID}`
+        );
         const checkout = await stripe.checkout.sessions.create({
           mode: "payment",
           payment_method_types: ["card"],
