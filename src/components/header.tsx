@@ -27,7 +27,6 @@ import Image from "next/image";
 // import logoWhite from "../app/assets/images/logo_white.png";
 import logo from "../app/assets/images/logo.jpeg";
 import Loader from "./loader";
-import { Bell } from "lucide-react";
 import {
   getNotifications,
   getUnreadCount,
@@ -35,7 +34,14 @@ import {
 } from "../services/notification.service";
 import { markNotificationAsRead } from "../services/notification.service";
 import { formatNotificationTime } from "../util/time";
-import { MessageCircle } from "lucide-react";
+import {
+  Bell,
+  MessageCircle,
+  Gavel,
+  DollarSign,
+  Trophy,
+  CircleHelp,
+} from "lucide-react";
 
 interface NavbarProps {
   onAuthChange?: () => void;
@@ -419,6 +425,34 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "bid":
+        return <Gavel className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />;
+
+      case "payment":
+        return (
+          <DollarSign className="w-4 h-4 text-green-500 shrink-0 mt-0.5" />
+        );
+
+      case "winner":
+        return <Trophy className="w-4 h-4 text-yellow-500 shrink-0 mt-0.5" />;
+
+      case "question":
+        return (
+          <CircleHelp className="w-4 h-4 text-purple-500 shrink-0 mt-0.5" />
+        );
+
+      case "chat":
+        return (
+          <MessageCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+        );
+
+      default:
+        return <Bell className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />;
+    }
+  };
+
   return (
     <>
       <nav className="border-b py-2 md:py-4 bg-white dark:bg-black dark:border-gray-700 fixed z-999 w-full top-0 left-0">
@@ -575,8 +609,7 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
                           >
                             <div className="flex justify-between items-start">
                               <div className="flex items-center gap-2">
-                                <MessageCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-
+                                {getNotificationIcon(item.type)}
                                 <span className="text-sm">{item.title}</span>
                               </div>
 

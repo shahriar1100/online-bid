@@ -112,135 +112,135 @@ export class AuctionRoom extends DurableObject {
     }
 
     // Add this property to the class
-private emailSendingInProgress: boolean = false;
+    private emailSendingInProgress: boolean = false;
 
-private async sendWinnerEmail(): Promise<void> {
-    if (!this.auctionState) return;
+    private async sendWinnerEmail(): Promise<void> {
+        if (!this.auctionState) return;
 
-    // Skip if no winner
-    if (!this.auctionState.highestBidder) {
-        console.log("📧 No winner to email");
-        return;
-    }
-
-    // Skip if already sent (check from storage to be safe)
-    if (this.auctionState.winnerEmailSent) {
-        console.log("📧 Winner email already sent (flag=true), skipping");
-        return;
-    }
-
-    // Prevent duplicate sends with in-memory lock
-    if (this.emailSendingInProgress) {
-        console.log("📧 Email send already in progress, skipping");
-        return;
-    }
-
-    // Set lock BEFORE any async operations
-    this.emailSendingInProgress = true;
-    
-    // Also immediately set the flag and save to prevent other DO instances
-    this.auctionState.winnerEmailSent = true;
-    await this.state.storage.put("auctionState", this.auctionState);
-
-    try {
-        // Get winner's email from database
-        const winner = await this.env.DB.prepare(
-            `SELECT email, name FROM users WHERE id = ?`
-        ).bind(this.auctionState.highestBidder.userId).first<{ email: string; name: string }>();
-
-        if (!winner?.email) {
-            console.error("❌ Winner email not found in database");
-            // Reset flag since we couldn't send
-            this.auctionState.winnerEmailSent = false;
-            await this.state.storage.put("auctionState", this.auctionState);
+        // Skip if no winner
+        if (!this.auctionState.highestBidder) {
+            console.log("📧 No winner to email");
             return;
         }
 
-        // Build auction URL
-        const auctionUrl = `${this.env.FRONTEND_BASE_URL || 'https://ibids365.com'}/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`;
+        // Skip if already sent (check from storage to be safe)
+        if (this.auctionState.winnerEmailSent) {
+            console.log("📧 Winner email already sent (flag=true), skipping");
+            return;
+        }
 
-        // Simple email content
-        const emailHtml = winnerEmailTemplate({
-    name: winner.name || this.auctionState.highestBidder.userName,
-    amount: this.auctionState.currentBid,
-    auctionUrl,
-});
+        // Prevent duplicate sends with in-memory lock
+        if (this.emailSendingInProgress) {
+            console.log("📧 Email send already in progress, skipping");
+            return;
+        }
 
-        // Send email
-const resend = new Resend(this.env.RESEND_API_KEY);
+        // Set lock BEFORE any async operations
+        this.emailSendingInProgress = true;
 
-const { error } = await resend.emails.send({
-    from: this.env.FROM_EMAIL || "onboarding@resend.dev",
-    to: winner.email,
-    subject: "🏆 You won the auction!",
-    html: emailHtml,
-});
-
-if (error) {
-    console.error("❌ Winner Email Error:", error);
-
-    this.auctionState.winnerEmailSent = false;
-    await this.state.storage.put("auctionState", this.auctionState);
-
-    return;
-}
-
-console.log(`✅ Winner email sent to ${winner.email}`);
-
-    } catch (error) {
-        console.error("❌ Failed to send winner email:", error);
-        // Reset flag on failure so it can be retried
-        this.auctionState.winnerEmailSent = false;
+        // Also immediately set the flag and save to prevent other DO instances
+        this.auctionState.winnerEmailSent = true;
         await this.state.storage.put("auctionState", this.auctionState);
-    } finally {
-        this.emailSendingInProgress = false;
+
+        try {
+            // Get winner's email from database
+            const winner = await this.env.DB.prepare(
+                `SELECT email, name FROM users WHERE id = ?`
+            ).bind(this.auctionState.highestBidder.userId).first<{ email: string; name: string }>();
+
+            if (!winner?.email) {
+                console.error("❌ Winner email not found in database");
+                // Reset flag since we couldn't send
+                this.auctionState.winnerEmailSent = false;
+                await this.state.storage.put("auctionState", this.auctionState);
+                return;
+            }
+
+            // Build auction URL
+            const auctionUrl = `${this.env.FRONTEND_BASE_URL || 'https://ibids365.com'}/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`;
+
+            // Simple email content
+            const emailHtml = winnerEmailTemplate({
+                name: winner.name || this.auctionState.highestBidder.userName,
+                amount: this.auctionState.currentBid,
+                auctionUrl,
+            });
+
+            // Send email
+            const resend = new Resend(this.env.RESEND_API_KEY);
+
+            const { error } = await resend.emails.send({
+                from: this.env.FROM_EMAIL || "onboarding@resend.dev",
+                to: winner.email,
+                subject: "🏆 You won the auction!",
+                html: emailHtml,
+            });
+
+            if (error) {
+                console.error("❌ Winner Email Error:", error);
+
+                this.auctionState.winnerEmailSent = false;
+                await this.state.storage.put("auctionState", this.auctionState);
+
+                return;
+            }
+
+            console.log(`✅ Winner email sent to ${winner.email}`);
+
+        } catch (error) {
+            console.error("❌ Failed to send winner email:", error);
+            // Reset flag on failure so it can be retried
+            this.auctionState.winnerEmailSent = false;
+            await this.state.storage.put("auctionState", this.auctionState);
+        } finally {
+            this.emailSendingInProgress = false;
+        }
     }
-}
 
 
-private async sendOutbidEmail(
-    previousUserId: number,
-    previousBid: number,
-    newBid: number
-): Promise<void> {
+    private async sendOutbidEmail(
+        previousUserId: number,
+        previousBid: number,
+        newBid: number
+    ): Promise<void> {
 
-    const user = await this.env.DB.prepare(
-        `SELECT name, email FROM users WHERE id = ?`
-    )
-        .bind(previousUserId)
-        .first<{ name: string; email: string }>();
+        const user = await this.env.DB.prepare(
+            `SELECT name, email FROM users WHERE id = ?`
+        )
+            .bind(previousUserId)
+            .first<{ name: string; email: string }>();
 
-    if (!user?.email) {
-        console.log("❌ Previous bidder email not found");
-        return;
+        if (!user?.email) {
+            console.log("❌ Previous bidder email not found");
+            return;
+        }
+
+        const auctionUrl =
+            `${this.env.FRONTEND_BASE_URL}/buyer/${this.auctionState?.listingType}/${this.auctionState?.listingId}`;
+
+        const emailHtml = outbidEmailTemplate({
+            name: user.name,
+            previousBid,
+            currentBid: newBid,
+            auctionUrl,
+        });
+
+        const resend = new Resend(this.env.RESEND_API_KEY);
+
+        const { error } = await resend.emails.send({
+            from: this.env.FROM_EMAIL || "onboarding@resend.dev",
+            to: user.email,
+            subject: "🔔 You have been outbid!",
+            html: emailHtml,
+        });
+
+        if (error) {
+            console.error("❌ Resend Error:", error);
+            return;
+        }
+
+        console.log("✅ Outbid email sent:", user.email);
     }
-
-    const auctionUrl =
-        `${this.env.FRONTEND_BASE_URL}/buyer/${this.auctionState?.listingType}/${this.auctionState?.listingId}`;
-
-    const emailHtml = outbidEmailTemplate({
-    name: user.name,
-    previousBid,
-    currentBid: newBid,
-    auctionUrl,
-});
-
-const resend = new Resend(this.env.RESEND_API_KEY);
-
-const { error } = await resend.emails.send({
-    from: this.env.FROM_EMAIL || "onboarding@resend.dev",
-    to: user.email,
-    subject: "🔔 You have been outbid!",
-    html: emailHtml,
-});
-
-if (error) {
-    console.error("❌ Resend Error:", error);
-    return;
-}
-
-console.log("✅ Outbid email sent:", user.email);
-}
 
 
     private async resyncFromListing(): Promise<void> {
@@ -288,20 +288,20 @@ console.log("✅ Outbid email sent:", user.email);
         }
 
         if (now >= end) {
-        this.auctionState.status = "ended";
+            this.auctionState.status = "ended";
 
-        // ✅ NEW: Send winner email if not sent yet
-        if (!this.auctionState.winnerEmailSent && this.auctionState.highestBidder) {
-            console.log("📧 Auction ended during resync, sending winner email...");
-            await this.sendWinnerEmail();
-        }
+            // ✅ NEW: Send winner email if not sent yet
+            if (!this.auctionState.winnerEmailSent && this.auctionState.highestBidder) {
+                console.log("📧 Auction ended during resync, sending winner email...");
+                await this.sendWinnerEmail();
+            }
 
-        // Finalize if not done
-        if (!this.auctionState.finalizedInDb) {
-            console.log("🔥 Listing ended but session not updated — forcing finalize");
-            await this.finalizeAuction();
-            this.auctionState.finalizedInDb = true;
-        }
+            // Finalize if not done
+            if (!this.auctionState.finalizedInDb) {
+                console.log("🔥 Listing ended but session not updated — forcing finalize");
+                await this.finalizeAuction();
+                this.auctionState.finalizedInDb = true;
+            }
         }
 
         await this.state.storage.put("auctionState", this.auctionState);
@@ -861,7 +861,7 @@ console.log("✅ Outbid email sent:", user.email);
         }
 
         const previousHighestBidder = this.auctionState.highestBidder;
-const previousBidAmount = this.auctionState.currentBid;
+        const previousBidAmount = this.auctionState.currentBid;
 
 
 
@@ -898,6 +898,25 @@ const previousBidAmount = this.auctionState.currentBid;
             Math.floor(Date.now() / 1000)
         ).run();
 
+        console.log("Listing Owner =", this.auctionState.listingOwnerId);
+        console.log("Bid User =", data.userId);
+
+        await this.env.DB.prepare(`
+  INSERT INTO notifications
+  (user_id, listing_id, type, title, link, is_read, created_at)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`).bind(
+            this.auctionState.listingOwnerId,
+            this.auctionState.listingId,
+            "bid",
+            `${data.userName} placed a bid on your auction.`,
+            `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+            0,
+            Date.now()
+        ).run();
+
+        console.log("✅ Notification inserted");
+
         this.broadcast({
             type: "NEW_BID",
             bid: {
@@ -915,15 +934,15 @@ const previousBidAmount = this.auctionState.currentBid;
         console.log(`✅ Bid placed: $${data.bidAmount} by ${data.userName}`);
 
         if (
-    previousHighestBidder &&
-    previousHighestBidder.userId !== data.userId
-) {
-    await this.sendOutbidEmail(
-        previousHighestBidder.userId,
-        previousBidAmount,
-        data.bidAmount
-    );
-}
+            previousHighestBidder &&
+            previousHighestBidder.userId !== data.userId
+        ) {
+            await this.sendOutbidEmail(
+                previousHighestBidder.userId,
+                previousBidAmount,
+                data.bidAmount
+            );
+        }
 
         return { success: true, bid };
     }

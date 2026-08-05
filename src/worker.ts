@@ -2831,6 +2831,12 @@ const worker = {
             .limit(1);
 
           sellerId = listing?.user_id ?? null;
+
+
+          console.log("========== BID DEBUG ==========");
+console.log("Listing Type =", body.listingType);
+console.log("Listing ID =", body.listingId);
+console.log("Seller ID =", sellerId);
         }
 
         if (body.listingType === "automobile") {
@@ -2897,6 +2903,38 @@ const worker = {
           );
         }
 
+
+
+if (body.listingType === "realestate") {
+  const listing = await db
+    .select()
+    .from(real_estate_listings)
+    .where(eq(real_estate_listings.id, body.listingId))
+    .get();
+
+  sellerId = listing?.user_id ?? null;
+}
+
+if (body.listingType === "automobile") {
+  const listing = await db
+    .select()
+    .from(automobile_listings)
+    .where(eq(automobile_listings.id, body.listingId))
+    .get();
+
+  sellerId = listing?.user_id ?? null;
+}
+
+if (body.listingType === "business") {
+  const listing = await db
+    .select()
+    .from(business_listings)
+    .where(eq(business_listings.id, body.listingId))
+    .get();
+
+  sellerId = listing?.user_id ?? null;
+}
+
         // Create the bid
         const now = new Date();
         const [newBid] = await db.insert(bids).values({
@@ -2910,8 +2948,8 @@ const worker = {
         }).returning();
 
         console.log("Seller ID =", sellerId);
-        console.log("Buyer ID =", authUser.userId);
-
+console.log("Buyer ID =", authUser.userId);
+console.log("Condition =", sellerId && sellerId !== authUser.userId);
 
         if (sellerId && sellerId !== authUser.userId) {
           await db.insert(notifications).values({
@@ -2923,6 +2961,9 @@ const worker = {
             is_read: false,
             created_at: new Date(),
           });
+
+          console.log("✅ Notification inserted");
+
         }
 
         console.log(`✅ New bid created: $${body.bidAmount} by ${user.name} for ${body.listingType}/${body.listingId}`);

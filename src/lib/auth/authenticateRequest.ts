@@ -24,20 +24,20 @@ export async function authenticateRequest(
     }
 
     const token = authHeader.replace("Bearer ", "");
-    console.log("TOKEN =", token);
-    console.log("JWT SECRET =", env.JWT_SECRET);
-console.log("JWT SECRET LENGTH =", env.JWT_SECRET?.length);
+//     console.log("TOKEN =", token);
+//     console.log("JWT SECRET =", env.JWT_SECRET);
+// console.log("JWT SECRET LENGTH =", env.JWT_SECRET?.length);
 
     const payload = await verifyJWT(token, env.JWT_SECRET);
     console.log("PAYLOAD =", payload);
 
     if (!payload) {
-        console.log("JWT verify failed");
+        // console.log("JWT verify failed");
         return null;
     }
 
     const userId = Number(payload.userId);
-    console.log("USER ID =", userId);
+    // console.log("USER ID =", userId);
 
     if (!userId) {
         return null;
@@ -50,7 +50,7 @@ console.log("JWT SECRET LENGTH =", env.JWT_SECRET?.length);
         .from(users)
         .where(eq(users.id, userId))
         .get();
-        console.log("USER =", user);
+        // console.log("USER =", user);
 
     return user ?? null;
 }
