@@ -4044,6 +4044,13 @@ const worker = {
           listingType: "realestate" | "automobile" | "business";
         };
 
+        console.log("========== PAY NOW ==========");
+console.log("listingId =", body.listingId);
+console.log("listingType =", body.listingType);
+console.log("userId =", auth.userId);
+
+console.log("➡️ Calling finalizeAuctionIfNeeded...");
+
         const sessionData = await finalizeAuctionIfNeeded(
           env,
           body.listingId,
@@ -4051,6 +4058,12 @@ const worker = {
         );
         console.log("========== PAY NOW DEBUG ==========");
         console.log("sessionData =", sessionData);
+
+        console.log("status =", sessionData?.status);
+console.log("winner =", sessionData?.winner_user_id);
+console.log("start =", sessionData?.start_time);
+console.log("end =", sessionData?.end_time);
+console.log("now =", Math.floor(Date.now() / 1000));
 
         if (!sessionData || sessionData.status !== "ended") {
           return new Response(JSON.stringify({ error: "Auction not ended" }), {
