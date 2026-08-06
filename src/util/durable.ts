@@ -462,7 +462,15 @@ export class AuctionRoom extends DurableObject {
             // Because the input "19:15" means 19:15 IST, not UTC
             const IST_OFFSET_SECONDS = 5 * 3600 + 30 * 60; // 5h 30m = 19800 seconds
             const utcTimestamp = Date.UTC(year, month - 1, day, hour, minute) / 1000;
-            return Math.floor(utcTimestamp - IST_OFFSET_SECONDS);
+
+            const result = Math.floor(utcTimestamp - IST_OFFSET_SECONDS);
+
+            console.log("📅 DURABLE PARSE");
+            console.log("RAW =", s);
+            console.log("TS =", result);
+            console.log("ISO =", new Date(result * 1000).toISOString());
+
+            return result;
         };
 
         return {
@@ -481,10 +489,10 @@ export class AuctionRoom extends DurableObject {
         const now = Math.floor(Date.now() / 1000);
 
         console.log("========== SCHEDULE ==========");
-    console.log("NOW =", now);
-    console.log("STATUS =", this.auctionState.status);
-    console.log("START =", this.auctionState.startTime);
-    console.log("END =", this.auctionState.endTime);
+        console.log("NOW =", now);
+        console.log("STATUS =", this.auctionState.status);
+        console.log("START =", this.auctionState.startTime);
+        console.log("END =", this.auctionState.endTime);
 
         if (this.auctionState.status === "upcoming" && this.auctionState.startTime > now) {
             const startMs = this.auctionState.startTime * 1000;
@@ -495,11 +503,11 @@ export class AuctionRoom extends DurableObject {
         if (this.auctionState.status === "live" && this.auctionState.endTime > now) {
             const endMs = this.auctionState.endTime * 1000;
 
-             console.log("⏰ Scheduling END alarm");
-    console.log("NOW =", new Date().toISOString());
-    console.log("END =", new Date(endMs).toISOString());
+            console.log("⏰ Scheduling END alarm");
+            console.log("NOW =", new Date().toISOString());
+            console.log("END =", new Date(endMs).toISOString());
 
-    
+
             await this.state.storage.setAlarm(endMs);
             console.log(`⏰ Scheduled auction END alarm for ${new Date(endMs).toISOString()}`);
         }
@@ -507,10 +515,10 @@ export class AuctionRoom extends DurableObject {
 
     async alarm(): Promise<void> {
         console.log("🔔 Alarm triggered!");
-console.log("NOW =", Math.floor(Date.now() / 1000));
-console.log("START =", this.auctionState?.startTime);
-console.log("END =", this.auctionState?.endTime);
-console.log("STATUS BEFORE =", this.auctionState?.status);
+        console.log("NOW =", Math.floor(Date.now() / 1000));
+        console.log("START =", this.auctionState?.startTime);
+        console.log("END =", this.auctionState?.endTime);
+        console.log("STATUS BEFORE =", this.auctionState?.status);
 
         // ✅ FIX: Restore state from storage if needed (after hibernation)
         if (!this.auctionState) {
@@ -547,7 +555,7 @@ console.log("STATUS BEFORE =", this.auctionState?.status);
     }
 
     private updateStatusBasedOnTime(): void {
-        
+
         if (!this.auctionState) return;
         console.log("STATUS AFTER =", this.auctionState.status);
         const now = Math.floor(Date.now() / 1000);
@@ -560,77 +568,77 @@ console.log("STATUS BEFORE =", this.auctionState?.status);
             this.auctionState.status = "upcoming";
         }
     }
-    
+
 
     private async checkEndingSoonNotification(): Promise<void> {
 
-    if (!this.auctionState) return;
+        if (!this.auctionState) return;
 
-    const now = Math.floor(Date.now() / 1000);
+        const now = Math.floor(Date.now() / 1000);
 
-    const secondsRemaining = this.auctionState.endTime - now;
+        const secondsRemaining = this.auctionState.endTime - now;
 
-    // 10 minutes = 600 seconds
-    if (
-        secondsRemaining <= 600 &&
-        secondsRemaining > 0 &&
-        !this.auctionState.endingSoonNotificationSent
-    ) {
+        // 10 minutes = 600 seconds
+        if (
+            secondsRemaining <= 600 &&
+            secondsRemaining > 0 &&
+            !this.auctionState.endingSoonNotificationSent
+        ) {
 
-        console.log("⏰ Sending Ending Soon notifications...");
+            console.log("⏰ Sending Ending Soon notifications...");
 
-        // Buyers
-        const buyers = await this.env.DB.prepare(`
+            // Buyers
+            const buyers = await this.env.DB.prepare(`
             SELECT DISTINCT user_id
             FROM bids
             WHERE listing_id = ?
             AND listing_type = ?
         `).bind(
-            this.auctionState.listingId,
-            this.auctionState.listingType
-        ).all();
+                this.auctionState.listingId,
+                this.auctionState.listingType
+            ).all();
 
-        for (const buyer of buyers.results as { user_id: number }[]) {
+            for (const buyer of buyers.results as { user_id: number }[]) {
 
-            await this.env.DB.prepare(`
+                await this.env.DB.prepare(`
                 INSERT INTO notifications
                 (user_id, listing_id, type, title, link, is_read, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             `).bind(
-                buyer.user_id,
-                this.auctionState.listingId,
-                "auction_ending",
-                "⏰ The auction you're bidding on ends in 10 minutes.",
-                `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
-                0,
-                Date.now()
-            ).run();
-        }
+                    buyer.user_id,
+                    this.auctionState.listingId,
+                    "auction_ending",
+                    "⏰ The auction you're bidding on ends in 10 minutes.",
+                    `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                    0,
+                    Date.now()
+                ).run();
+            }
 
-        // Seller
-        await this.env.DB.prepare(`
+            // Seller
+            await this.env.DB.prepare(`
             INSERT INTO notifications
             (user_id, listing_id, type, title, link, is_read, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `).bind(
-            this.auctionState.listingOwnerId,
-            this.auctionState.listingId,
-            "auction_ending",
-            "⏰ Your auction will end in 10 minutes.",
-            `/seller/${this.auctionState.listingType}/${this.auctionState.listingId}`,
-            0,
-            Date.now()
-        ).run();
+                this.auctionState.listingOwnerId,
+                this.auctionState.listingId,
+                "auction_ending",
+                "⏰ Your auction will end in 10 minutes.",
+                `/seller/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                0,
+                Date.now()
+            ).run();
 
-        this.auctionState.endingSoonNotificationSent = true;
+            this.auctionState.endingSoonNotificationSent = true;
 
-        await this.state.storage.put("auctionState", this.auctionState);
+            await this.state.storage.put("auctionState", this.auctionState);
 
-        console.log("✅ Ending Soon notifications inserted");
+            console.log("✅ Ending Soon notifications inserted");
+
+        }
 
     }
-
-}
 
     private async checkAndFinalizeIfEnded(): Promise<void> {
         if (!this.auctionState) return;
@@ -655,15 +663,15 @@ console.log("STATUS BEFORE =", this.auctionState?.status);
     }
 
     private async finalizeAuction(): Promise<void> {
-    if (!this.auctionState) return;
+        if (!this.auctionState) return;
 
-    console.log("==================================");
-    console.log("🚀 FINALIZE AUCTION STARTED");
-    console.log("TIME =", new Date().toISOString());
-    console.log("LISTING =", this.auctionState.listingType, this.auctionState.listingId);
-    console.log("STATUS =", this.auctionState.status);
-    console.log("WINNER =", this.auctionState.highestBidder);
-    console.log("==================================");
+        console.log("==================================");
+        console.log("🚀 FINALIZE AUCTION STARTED");
+        console.log("TIME =", new Date().toISOString());
+        console.log("LISTING =", this.auctionState.listingType, this.auctionState.listingId);
+        console.log("STATUS =", this.auctionState.status);
+        console.log("WINNER =", this.auctionState.highestBidder);
+        console.log("==================================");
         await this.env.DB.prepare(`
             INSERT INTO auction_sessions (listing_id, listing_type, start_time, end_time, starting_price, current_bid, status, winner_user_id, winning_bid, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, 'ended', ?, ?, unixepoch(), unixepoch())
