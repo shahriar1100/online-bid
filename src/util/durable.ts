@@ -480,6 +480,12 @@ export class AuctionRoom extends DurableObject {
 
         const now = Math.floor(Date.now() / 1000);
 
+        console.log("========== SCHEDULE ==========");
+    console.log("NOW =", now);
+    console.log("STATUS =", this.auctionState.status);
+    console.log("START =", this.auctionState.startTime);
+    console.log("END =", this.auctionState.endTime);
+
         if (this.auctionState.status === "upcoming" && this.auctionState.startTime > now) {
             const startMs = this.auctionState.startTime * 1000;
             await this.state.storage.setAlarm(startMs);
@@ -488,6 +494,12 @@ export class AuctionRoom extends DurableObject {
 
         if (this.auctionState.status === "live" && this.auctionState.endTime > now) {
             const endMs = this.auctionState.endTime * 1000;
+
+             console.log("⏰ Scheduling END alarm");
+    console.log("NOW =", new Date().toISOString());
+    console.log("END =", new Date(endMs).toISOString());
+
+    
             await this.state.storage.setAlarm(endMs);
             console.log(`⏰ Scheduled auction END alarm for ${new Date(endMs).toISOString()}`);
         }
@@ -495,6 +507,10 @@ export class AuctionRoom extends DurableObject {
 
     async alarm(): Promise<void> {
         console.log("🔔 Alarm triggered!");
+console.log("NOW =", Math.floor(Date.now() / 1000));
+console.log("START =", this.auctionState?.startTime);
+console.log("END =", this.auctionState?.endTime);
+console.log("STATUS BEFORE =", this.auctionState?.status);
 
         // ✅ FIX: Restore state from storage if needed (after hibernation)
         if (!this.auctionState) {
@@ -531,8 +547,9 @@ export class AuctionRoom extends DurableObject {
     }
 
     private updateStatusBasedOnTime(): void {
+        
         if (!this.auctionState) return;
-
+        console.log("STATUS AFTER =", this.auctionState.status);
         const now = Math.floor(Date.now() / 1000);
 
         if (now >= this.auctionState.endTime) {
@@ -543,6 +560,7 @@ export class AuctionRoom extends DurableObject {
             this.auctionState.status = "upcoming";
         }
     }
+    
 
     private async checkEndingSoonNotification(): Promise<void> {
 
@@ -637,11 +655,15 @@ export class AuctionRoom extends DurableObject {
     }
 
     private async finalizeAuction(): Promise<void> {
-        if (!this.auctionState) return;
+    if (!this.auctionState) return;
 
-        console.log(`🏁 Finalizing auction ${this.auctionState.listingType}/${this.auctionState.listingId}`);
-console.log("🚀 finalizeAuction started");
-console.log("Winner =", this.auctionState.highestBidder);
+    console.log("==================================");
+    console.log("🚀 FINALIZE AUCTION STARTED");
+    console.log("TIME =", new Date().toISOString());
+    console.log("LISTING =", this.auctionState.listingType, this.auctionState.listingId);
+    console.log("STATUS =", this.auctionState.status);
+    console.log("WINNER =", this.auctionState.highestBidder);
+    console.log("==================================");
         await this.env.DB.prepare(`
             INSERT INTO auction_sessions (listing_id, listing_type, start_time, end_time, starting_price, current_bid, status, winner_user_id, winning_bid, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, 'ended', ?, ?, unixepoch(), unixepoch())
