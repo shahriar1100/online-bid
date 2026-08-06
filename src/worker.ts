@@ -63,19 +63,25 @@ function parseDuration(duration: string): { start: number; end: number } {
   // Expected format: DD/MM/YYYY HH:mm
   const [startStr, endStr] = duration.split("to").map(s => s.trim());
 
- const parse = (s: string) => {
+const parse = (s: string) => {
     const [datePart, timePart] = s.split(" ");
     const [day, month, year] = datePart.split("/").map(Number);
     const [hour, minute] = timePart.split(":").map(Number);
 
-    const result = Math.floor(
-        new Date(year, month - 1, day, hour, minute).getTime() / 1000
-    );
+    console.log("DAY =", day);
+    console.log("MONTH =", month);
+    console.log("YEAR =", year);
+    console.log("HOUR =", hour);
+    console.log("MINUTE =", minute);
 
-    console.log("📅 WORKER PARSE");
-    console.log("RAW =", s);
-    console.log("TS =", result);
-    console.log("ISO =", new Date(result * 1000).toISOString());
+    const date = new Date(year, month - 1, day, hour, minute);
+
+    console.log("DATE =", date.toString());
+    console.log("ISO =", date.toISOString());
+
+    const result = Math.floor(date.getTime() / 1000);
+
+    console.log("UNIX =", result);
 
     return result;
 };
@@ -243,6 +249,10 @@ async function finalizeAuctionIfNeeded(
     console.log(`❌ Listing not found: ${listingId}`);
     return null;
   }
+
+  console.log("========== LISTING DEBUG ==========");
+console.log("RAW DURATION =", listing.duration);
+console.log("LISTING =", listing);
 
   console.log(`🔍 Found listing, duration: "${listing.duration}"`);
 
