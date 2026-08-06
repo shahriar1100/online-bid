@@ -327,22 +327,28 @@ console.log("NOW          =", Math.floor(Date.now() / 1000), new Date().toISOStr
         }
 
         // Try to load from Durable Object storage first
-        const stored = await this.state.storage.get<AuctionState>("auctionState");
+const stored = await this.state.storage.get<AuctionState>("auctionState");
 
-        if (stored) {
-            this.auctionState = stored;
-            this.initialized = true;
-            // Check if status needs updating based on time
-            this.updateStatusBasedOnTime();
-            // ✅ FIX: If ended but not finalized, do it now
-            if (this.auctionState.status === "ended" && !this.auctionState.finalizedInDb) {
-                console.log("🏁 Finalizing on init (was ended but not in DB)");
-                await this.finalizeAuction();
-                this.auctionState.finalizedInDb = true;
-            }
-            await this.state.storage.put("auctionState", this.auctionState);
-            return;
-        }
+if (stored) {
+    this.auctionState = stored;
+    this.initialized = true;
+
+    // 🔥 NEW - Listing  latest duration sync 
+    await this.resyncFromListing();
+
+    // Check if status needs updating based on time
+    this.updateStatusBasedOnTime();
+
+    // ✅ FIX: If ended but not finalized, do it now
+    if (this.auctionState.status === "ended" && !this.auctionState.finalizedInDb) {
+        console.log("🏁 Finalizing on init (was ended but not in DB)");
+        await this.finalizeAuction();
+        this.auctionState.finalizedInDb = true;
+    }
+
+    await this.state.storage.put("auctionState", this.auctionState);
+    return;
+}
 
         // Load from database if not in storage
         await this.loadFromDatabase(listingId, listingType);
