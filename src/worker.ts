@@ -4041,13 +4041,18 @@ const worker = {
           apiVersion: "2025-10-29.clover",
         });
 
+        console.log("========== PAY NOW AUTH ==========");
+console.log("AUTH HEADER =", req.headers.get("Authorization"));
+
         const auth = await authenticateRequest(req, env);
         if (!auth) {
+          console.log("❌ AUTH FAILED");
           return new Response(JSON.stringify({ error: "Unauthorized" }), {
             status: 401,
             headers: getCorsHeaders(),
           });
         }
+        console.log("AUTH RESULT =", auth);
 
         const body = await req.json() as {
           listingId: number;
