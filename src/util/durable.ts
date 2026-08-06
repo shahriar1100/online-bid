@@ -649,29 +649,51 @@ export class AuctionRoom extends DurableObject {
 
     }
 
-    private async checkAndFinalizeIfEnded(): Promise<void> {
-        if (!this.auctionState) return;
-        await this.checkEndingSoonNotification();
-        this.updateStatusBasedOnTime();
-
-        if (this.auctionState.status === "ended") {
-            // Always try to send email if not sent yet
-            if (!this.auctionState.winnerEmailSent && this.auctionState.highestBidder) {
-                console.log("📧 Auction ended, checking if winner email needs to be sent...");
-                await this.sendWinnerEmail();
-            }
-
-            // Finalize in DB if not done
-            if (!this.auctionState.finalizedInDb) {
-                console.log("🏁 Auto-finalizing auction (detected on request)");
-                await this.finalizeAuction();
-                this.auctionState.finalizedInDb = true;
-                await this.state.storage.put("auctionState", this.auctionState);
-            }
-        }
+ private async checkAndFinalizeIfEnded(): Promise<void> {
+    console.log("🔥 checkAndFinalizeIfEnded CALLED");
+    if (!this.auctionState) {
+        console.log("❌ auctionState is null");
+        return;
     }
 
+    console.log("========== CHECK FINALIZE ==========");
+    console.log("status =", this.auctionState.status);
+    console.log("winnerEmailSent =", this.auctionState.winnerEmailSent);
+    console.log("highestBidder =", this.auctionState.highestBidder);
+    console.log("finalizedInDb =", this.auctionState.finalizedInDb);
+
+    await this.checkEndingSoonNotification();
+
+    this.updateStatusBasedOnTime();
+
+    console.log("status after update =", this.auctionState.status);
+
+    if (this.auctionState.status === "ended") {
+
+        console.log("✅ Auction is ENDED");
+
+        if (!this.auctionState.winnerEmailSent && this.auctionState.highestBidder) {
+            console.log("📧 Sending winner email...");
+            await this.sendWinnerEmail();
+        }
+
+        if (!this.auctionState.finalizedInDb) {
+            console.log("🏁 Calling finalizeAuction()");
+            await this.finalizeAuction();
+            console.log("🏁 finalizeAuction finished");
+
+            this.auctionState.finalizedInDb = true;
+            await this.state.storage.put("auctionState", this.auctionState);
+        } else {
+            console.log("⚠ Already finalized");
+        }
+    } else {
+        console.log("❌ Auction not ended");
+    }
+}
+
     private async finalizeAuction(): Promise<void> {
+        console.log("🔥 finalizeAuction CALLED");
         if (!this.auctionState) return;
 
         console.log("==================================");
@@ -1176,6 +1198,7 @@ console.log("✅ Notification inserted");
     // ══════════════════════════════════════════════════════════════════════════════
 
     private async handleGetState(): Promise<Response> {
+        console.log("🔥 handleGetState CALLED");
         if (!this.auctionState) {
             return new Response(JSON.stringify({ error: "Auction not found" }), {
                 status: 404,
@@ -1184,6 +1207,7 @@ console.log("✅ Notification inserted");
         }
         await this.resyncFromListing();
         await this.checkAndFinalizeIfEnded();
+        console.log("🔥 After checkAndFinalizeIfEnded");
 
         return new Response(JSON.stringify({
             success: true,
