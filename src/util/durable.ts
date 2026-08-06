@@ -1073,7 +1073,15 @@ export class AuctionRoom extends DurableObject {
             Math.floor(Date.now() / 1000)
         ).run();
 
-        await this.env.DB.prepare(`
+
+console.log("🚀 Updating auction_sessions...");
+console.log("listingId =", this.auctionState.listingId);
+console.log("listingType =", this.auctionState.listingType);
+console.log("userId =", data.userId);
+console.log("bidAmount =", data.bidAmount);
+
+
+const updateResult = await this.env.DB.prepare(`
 UPDATE auction_sessions
 SET
     current_bid = ?,
@@ -1083,33 +1091,37 @@ SET
 WHERE listing_id = ?
 AND listing_type = ?
 `)
-            .bind(
-                data.bidAmount,
-                data.userId,
-                data.bidAmount,
-                this.auctionState.listingId,
-                this.auctionState.listingType
-            )
-            .run();
+.bind(
+    data.bidAmount,
+    data.userId,
+    data.bidAmount,
+    this.auctionState.listingId,
+    this.auctionState.listingType
+)
+.run();
 
-        console.log("Listing Owner =", this.auctionState.listingOwnerId);
-        console.log("Bid User =", data.userId);
+console.log("✅ UPDATE RESULT =", updateResult);
 
-        await this.env.DB.prepare(`
-  INSERT INTO notifications
-  (user_id, listing_id, type, title, link, is_read, created_at)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
-`).bind(
-            this.auctionState.listingOwnerId,
-            this.auctionState.listingId,
-            "bid",
-            `${data.userName} placed a bid on your auction.`,
-            `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
-            0,
-            Date.now()
-        ).run();
+console.log("Listing Owner =", this.auctionState.listingOwnerId);
+console.log("Bid User =", data.userId);
+await this.env.DB.prepare(`
+INSERT INTO notifications
+(user_id, listing_id, type, title, link, is_read, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?)
+`)
+.bind(
+    this.auctionState.listingOwnerId,
+    this.auctionState.listingId,
+    "bid",
+    `${data.userName} placed a bid on your auction.`,
+    `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+    0,
+    Date.now()
+)
+.run();
 
-        console.log("✅ Notification inserted");
+console.log("✅ Notification inserted");
+
 
         this.broadcast({
             type: "NEW_BID",
