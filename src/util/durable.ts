@@ -260,11 +260,11 @@ export class AuctionRoom extends DurableObject {
 
         const { start, end } = this.parseDuration(listing.duration);
 
-console.log("========== RESYNC ==========");
-console.log("RAW DURATION =", listing.duration);
-console.log("PARSED START =", start, new Date(start * 1000).toISOString());
-console.log("PARSED END   =", end, new Date(end * 1000).toISOString());
-console.log("NOW          =", Math.floor(Date.now() / 1000), new Date().toISOString());
+        console.log("========== RESYNC ==========");
+        console.log("RAW DURATION =", listing.duration);
+        console.log("PARSED START =", start, new Date(start * 1000).toISOString());
+        console.log("PARSED END   =", end, new Date(end * 1000).toISOString());
+        console.log("NOW          =", Math.floor(Date.now() / 1000), new Date().toISOString());
         const now = Math.floor(Date.now() / 1000);
 
         // Check if times changed
@@ -327,28 +327,28 @@ console.log("NOW          =", Math.floor(Date.now() / 1000), new Date().toISOStr
         }
 
         // Try to load from Durable Object storage first
-const stored = await this.state.storage.get<AuctionState>("auctionState");
+        const stored = await this.state.storage.get<AuctionState>("auctionState");
 
-if (stored) {
-    this.auctionState = stored;
-    this.initialized = true;
+        if (stored) {
+            this.auctionState = stored;
+            this.initialized = true;
 
-    // 🔥 NEW - Listing  latest duration sync 
-    await this.resyncFromListing();
+            // 🔥 NEW - Listing  latest duration sync 
+            await this.resyncFromListing();
 
-    // Check if status needs updating based on time
-    this.updateStatusBasedOnTime();
+            // Check if status needs updating based on time
+            this.updateStatusBasedOnTime();
 
-    // ✅ FIX: If ended but not finalized, do it now
-    if (this.auctionState.status === "ended" && !this.auctionState.finalizedInDb) {
-        console.log("🏁 Finalizing on init (was ended but not in DB)");
-        await this.finalizeAuction();
-        this.auctionState.finalizedInDb = true;
-    }
+            // ✅ FIX: If ended but not finalized, do it now
+            if (this.auctionState.status === "ended" && !this.auctionState.finalizedInDb) {
+                console.log("🏁 Finalizing on init (was ended but not in DB)");
+                await this.finalizeAuction();
+                this.auctionState.finalizedInDb = true;
+            }
 
-    await this.state.storage.put("auctionState", this.auctionState);
-    return;
-}
+            await this.state.storage.put("auctionState", this.auctionState);
+            return;
+        }
 
         // Load from database if not in storage
         await this.loadFromDatabase(listingId, listingType);
@@ -462,31 +462,31 @@ if (stored) {
         }
     }
 
-   private parseDuration(duration: string): { start: number; end: number } {
-    const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
+    private parseDuration(duration: string): { start: number; end: number } {
+        const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
 
-    const parse = (s: string): number => {
-        const [datePart, timePart] = s.split(" ");
-        const [day, month, year] = datePart.split("/").map(Number);
-        const [hour, minute] = timePart.split(":").map(Number);
+        const parse = (s: string): number => {
+            const [datePart, timePart] = s.split(" ");
+            const [day, month, year] = datePart.split("/").map(Number);
+            const [hour, minute] = timePart.split(":").map(Number);
 
-        const result = Math.floor(
-            new Date(year, month - 1, day, hour, minute).getTime() / 1000
-        );
+            const result = Math.floor(
+                new Date(year, month - 1, day, hour, minute).getTime() / 1000
+            );
 
-        console.log("📅 DURABLE PARSE");
-        console.log("RAW =", s);
-        console.log("TS =", result);
-        console.log("ISO =", new Date(result * 1000).toISOString());
+            console.log("📅 DURABLE PARSE");
+            console.log("RAW =", s);
+            console.log("TS =", result);
+            console.log("ISO =", new Date(result * 1000).toISOString());
 
-        return result;
-    };
+            return result;
+        };
 
-    return {
-        start: parse(startStr),
-        end: parse(endStr),
-    };
-}
+        return {
+            start: parse(startStr),
+            end: parse(endStr),
+        };
+    }
 
     // ══════════════════════════════════════════════════════════════════════════════
     // SCHEDULED ALARMS
@@ -1072,6 +1072,25 @@ if (stored) {
             data.bidAmount,
             Math.floor(Date.now() / 1000)
         ).run();
+
+        await this.env.DB.prepare(`
+UPDATE auction_sessions
+SET
+    current_bid = ?,
+    winner_user_id = ?,
+    winning_bid = ?,
+    updated_at = unixepoch()
+WHERE listing_id = ?
+AND listing_type = ?
+`)
+            .bind(
+                data.bidAmount,
+                data.userId,
+                data.bidAmount,
+                this.auctionState.listingId,
+                this.auctionState.listingType
+            )
+            .run();
 
         console.log("Listing Owner =", this.auctionState.listingOwnerId);
         console.log("Bid User =", data.userId);
