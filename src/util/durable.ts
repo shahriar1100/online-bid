@@ -450,34 +450,31 @@ export class AuctionRoom extends DurableObject {
         }
     }
 
-    private parseDuration(duration: string): { start: number; end: number } {
-        const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
+   private parseDuration(duration: string): { start: number; end: number } {
+    const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
 
-        const parse = (s: string): number => {
-            const [datePart, timePart] = s.split(" ");
-            const [day, month, year] = datePart.split("/").map(Number);
-            const [hour, minute] = timePart.split(":").map(Number);
+    const parse = (s: string): number => {
+        const [datePart, timePart] = s.split(" ");
+        const [day, month, year] = datePart.split("/").map(Number);
+        const [hour, minute] = timePart.split(":").map(Number);
 
-            // Create as UTC, then subtract IST offset (5:30)
-            // Because the input "19:15" means 19:15 IST, not UTC
-            const IST_OFFSET_SECONDS = 5 * 3600 + 30 * 60; // 5h 30m = 19800 seconds
-            const utcTimestamp = Date.UTC(year, month - 1, day, hour, minute) / 1000;
+        const result = Math.floor(
+            new Date(year, month - 1, day, hour, minute).getTime() / 1000
+        );
 
-            const result = Math.floor(utcTimestamp - IST_OFFSET_SECONDS);
+        console.log("📅 DURABLE PARSE");
+        console.log("RAW =", s);
+        console.log("TS =", result);
+        console.log("ISO =", new Date(result * 1000).toISOString());
 
-            console.log("📅 DURABLE PARSE");
-            console.log("RAW =", s);
-            console.log("TS =", result);
-            console.log("ISO =", new Date(result * 1000).toISOString());
+        return result;
+    };
 
-            return result;
-        };
-
-        return {
-            start: parse(startStr),
-            end: parse(endStr),
-        };
-    }
+    return {
+        start: parse(startStr),
+        end: parse(endStr),
+    };
+}
 
     // ══════════════════════════════════════════════════════════════════════════════
     // SCHEDULED ALARMS
