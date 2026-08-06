@@ -259,6 +259,12 @@ export class AuctionRoom extends DurableObject {
         if (!listing?.duration) return;
 
         const { start, end } = this.parseDuration(listing.duration);
+
+console.log("========== RESYNC ==========");
+console.log("RAW DURATION =", listing.duration);
+console.log("PARSED START =", start, new Date(start * 1000).toISOString());
+console.log("PARSED END   =", end, new Date(end * 1000).toISOString());
+console.log("NOW          =", Math.floor(Date.now() / 1000), new Date().toISOString());
         const now = Math.floor(Date.now() / 1000);
 
         // Check if times changed
