@@ -23,6 +23,10 @@ export const real_estate_listings = sqliteTable("real_estate_listings", {
   subcategory: text("subcategory").notNull(),
   auction_type: text("auction_type").notNull(),
   duration: text("duration").notNull(),
+
+  auction_start_at: integer("auction_start_at"),
+  auction_end_at: integer("auction_end_at"),
+
   description: text("description").notNull(),
   media: text("media").$type<string | null>(),            // JSON string of file metadata / URLs
   property_address: text("property_address").notNull(),
@@ -69,6 +73,10 @@ export const automobile_listings = sqliteTable("automobile_listings", {
   category: text("category").notNull(),
   subcategory: text("subcategory").notNull(),
   duration: text("duration").notNull(),
+
+  auction_start_at: integer("auction_start_at"),
+  auction_end_at: integer("auction_end_at"),
+
   description: text("description").notNull(),
   media: text("media").$type<string | null>(),
 
@@ -122,6 +130,10 @@ export const business_listings = sqliteTable("business_listings", {
   subcategory: text("subcategory").notNull(),
   auction_type: text("auction_type").notNull(),
   duration: text("duration").notNull(),
+
+  auction_start_at: integer("auction_start_at"),
+  auction_end_at: integer("auction_end_at"),
+
   description: text("description").notNull(),
   media: text("media").$type<string | null>(),
 

@@ -28,6 +28,7 @@ import { markNotificationAsRead } from "./lib/notifications/markNotificationAsRe
 import { notifications } from "./db/schema";
 import { generateInvoice } from "./lib/invoice/generateInvoice";
 import { generateInvoiceNumber } from "./lib/invoice/invoiceNumber";
+import { parseDurationToUnix } from "./lib/date-utils";
 
 
 export interface Env {
@@ -61,40 +62,41 @@ function getCorsHeaders() {
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 }
-function parseDuration(duration: string): { start: number; end: number } {
-  // Expected format: DD/MM/YYYY HH:mm
-  const [startStr, endStr] = duration.split("to").map(s => s.trim());
 
-  const parse = (s: string) => {
-    const [datePart, timePart] = s.split(" ");
-    const [day, month, year] = datePart.split("/").map(Number);
-    const [hour, minute] = timePart.split(":").map(Number);
+// function parseDuration(duration: string): { start: number; end: number } {
+//   // Expected format: DD/MM/YYYY HH:mm
+//   const [startStr, endStr] = duration.split("to").map(s => s.trim());
 
-    console.log("DAY =", day);
-    console.log("MONTH =", month);
-    console.log("YEAR =", year);
-    console.log("HOUR =", hour);
-    console.log("MINUTE =", minute);
+//   const parse = (s: string) => {
+//     const [datePart, timePart] = s.split(" ");
+//     const [day, month, year] = datePart.split("/").map(Number);
+//     const [hour, minute] = timePart.split(":").map(Number);
 
-    const date = new Date(year, month - 1, day, hour, minute);
+//     console.log("DAY =", day);
+//     console.log("MONTH =", month);
+//     console.log("YEAR =", year);
+//     console.log("HOUR =", hour);
+//     console.log("MINUTE =", minute);
 
-    console.log("DATE =", date.toString());
-    console.log("ISO =", date.toISOString());
+// // Bangladesh time (UTC+6) -> UTC
+// const result = Math.floor(
+//   Date.UTC(year, month - 1, day, hour - 6, minute) / 1000
+// );
 
-    const result = Math.floor(date.getTime() / 1000);
+//     console.log("UNIX =", result);
 
-    console.log("UNIX =", result);
+//     return result;
+//   };
 
-    return result;
-  };
-
-  return {
-    start: parse(startStr),
-    end: parse(endStr),
-  };
-}
+//   return {
+//     start: parse(startStr),
+//     end: parse(endStr),
+//   };
+// }
 
 // Add this helper function at the top of your worker file
+
+
 async function authenticateRequest(req: Request, env: Env): Promise<{ userId: number; email: string; role: string } | null> {
   const authHeader = req.headers.get('Authorization');
 
@@ -169,6 +171,37 @@ async function finalizeAuctionIfNeeded(
 
   // ✅ FIX: Restore the old logic for existing session
   if (existingSession) {
+    const listingTable = getListingTable(listingType);
+if (!listingTable) return existingSession;
+
+const listing = await db
+  .select()
+  .from(listingTable)
+  .where(eq(listingTable.id, listingId))
+  .get();
+
+if (listing) {
+  // const { start, end } = parseDuration(listing.duration);
+  const { start, end } = parseDurationToUnix(listing.duration);
+  
+
+  if (
+    existingSession.start_time !== start ||
+    existingSession.end_time !== end
+  ) {
+    await db
+      .update(auction_sessions)
+      .set({
+        start_time: start,
+        end_time: end,
+        updated_at: new Date(),
+      })
+      .where(eq(auction_sessions.id, existingSession.id));
+
+    existingSession.start_time = start;
+    existingSession.end_time = end;
+  }
+}
     console.log("========== EXISTING SESSION ==========");
     console.log("DB STATUS =", existingSession.status);
     console.log("DB END =", existingSession.end_time);
@@ -270,7 +303,8 @@ async function finalizeAuctionIfNeeded(
 
   console.log("Duration raw:", listing.duration);
 
-  const { start, end } = parseDuration(listing.duration);
+  // const { start, end } = parseDuration(listing.duration);
+  const { start, end } = parseDurationToUnix(listing.duration);
 
   console.log("Start:", new Date(start * 1000).toString());
   console.log("End:", new Date(end * 1000).toString());

@@ -4,6 +4,7 @@ import { DurableObject } from "cloudflare:workers";
 import { Resend } from "resend";
 import { winnerEmailTemplate } from "../lib/email/templates/winner";
 import { outbidEmailTemplate } from "../lib/email/templates/outbid";
+import { parseDurationToUnix } from "../lib/date-utils";
 
 // ════════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -258,7 +259,8 @@ export class AuctionRoom extends DurableObject {
 
         if (!listing?.duration) return;
 
-        const { start, end } = this.parseDuration(listing.duration);
+
+        const { start, end } = parseDurationToUnix(listing.duration);
 
         console.log("========== RESYNC ==========");
         console.log("RAW DURATION =", listing.duration);
@@ -379,7 +381,7 @@ export class AuctionRoom extends DurableObject {
             throw new Error(`Listing not found: ${listingType}/${listingId}`);
         }
 
-        const { start, end } = this.parseDuration(listing.duration as string);
+        const { start, end } = parseDurationToUnix(String(listing.duration));
 
         let startingPrice = 0;
         if (listingType === "realestate") {
@@ -462,31 +464,31 @@ export class AuctionRoom extends DurableObject {
         }
     }
 
-    private parseDuration(duration: string): { start: number; end: number } {
-        const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
+    // private parseDuration(duration: string): { start: number; end: number } {
+    //     const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
 
-        const parse = (s: string): number => {
-            const [datePart, timePart] = s.split(" ");
-            const [day, month, year] = datePart.split("/").map(Number);
-            const [hour, minute] = timePart.split(":").map(Number);
+    //     const parse = (s: string): number => {
+    //         const [datePart, timePart] = s.split(" ");
+    //         const [day, month, year] = datePart.split("/").map(Number);
+    //         const [hour, minute] = timePart.split(":").map(Number);
 
-            const result = Math.floor(
-                new Date(year, month - 1, day, hour, minute).getTime() / 1000
-            );
+    //         const result = Math.floor(
+    //             Date.UTC(year, month - 1, day, hour - 6, minute) / 1000
+    //         );
 
-            console.log("📅 DURABLE PARSE");
-            console.log("RAW =", s);
-            console.log("TS =", result);
-            console.log("ISO =", new Date(result * 1000).toISOString());
+    //         console.log("📅 DURABLE PARSE");
+    //         console.log("RAW =", s);
+    //         console.log("TS =", result);
+    //         console.log("ISO =", new Date(result * 1000).toISOString());
 
-            return result;
-        };
+    //         return result;
+    //     };
 
-        return {
-            start: parse(startStr),
-            end: parse(endStr),
-        };
-    }
+    //     return {
+    //         start: parse(startStr),
+    //         end: parse(endStr),
+    //     };
+    // }
 
     // ══════════════════════════════════════════════════════════════════════════════
     // SCHEDULED ALARMS
@@ -649,48 +651,48 @@ export class AuctionRoom extends DurableObject {
 
     }
 
- private async checkAndFinalizeIfEnded(): Promise<void> {
-    console.log("🔥 checkAndFinalizeIfEnded CALLED");
-    if (!this.auctionState) {
-        console.log("❌ auctionState is null");
-        return;
-    }
-
-    console.log("========== CHECK FINALIZE ==========");
-    console.log("status =", this.auctionState.status);
-    console.log("winnerEmailSent =", this.auctionState.winnerEmailSent);
-    console.log("highestBidder =", this.auctionState.highestBidder);
-    console.log("finalizedInDb =", this.auctionState.finalizedInDb);
-
-    await this.checkEndingSoonNotification();
-
-    this.updateStatusBasedOnTime();
-
-    console.log("status after update =", this.auctionState.status);
-
-    if (this.auctionState.status === "ended") {
-
-        console.log("✅ Auction is ENDED");
-
-        if (!this.auctionState.winnerEmailSent && this.auctionState.highestBidder) {
-            console.log("📧 Sending winner email...");
-            await this.sendWinnerEmail();
+    private async checkAndFinalizeIfEnded(): Promise<void> {
+        console.log("🔥 checkAndFinalizeIfEnded CALLED");
+        if (!this.auctionState) {
+            console.log("❌ auctionState is null");
+            return;
         }
 
-        if (!this.auctionState.finalizedInDb) {
-            console.log("🏁 Calling finalizeAuction()");
-            await this.finalizeAuction();
-            console.log("🏁 finalizeAuction finished");
+        console.log("========== CHECK FINALIZE ==========");
+        console.log("status =", this.auctionState.status);
+        console.log("winnerEmailSent =", this.auctionState.winnerEmailSent);
+        console.log("highestBidder =", this.auctionState.highestBidder);
+        console.log("finalizedInDb =", this.auctionState.finalizedInDb);
 
-            this.auctionState.finalizedInDb = true;
-            await this.state.storage.put("auctionState", this.auctionState);
+        await this.checkEndingSoonNotification();
+
+        this.updateStatusBasedOnTime();
+
+        console.log("status after update =", this.auctionState.status);
+
+        if (this.auctionState.status === "ended") {
+
+            console.log("✅ Auction is ENDED");
+
+            if (!this.auctionState.winnerEmailSent && this.auctionState.highestBidder) {
+                console.log("📧 Sending winner email...");
+                await this.sendWinnerEmail();
+            }
+
+            if (!this.auctionState.finalizedInDb) {
+                console.log("🏁 Calling finalizeAuction()");
+                await this.finalizeAuction();
+                console.log("🏁 finalizeAuction finished");
+
+                this.auctionState.finalizedInDb = true;
+                await this.state.storage.put("auctionState", this.auctionState);
+            } else {
+                console.log("⚠ Already finalized");
+            }
         } else {
-            console.log("⚠ Already finalized");
+            console.log("❌ Auction not ended");
         }
-    } else {
-        console.log("❌ Auction not ended");
     }
-}
 
     private async finalizeAuction(): Promise<void> {
         console.log("🔥 finalizeAuction CALLED");
@@ -1096,14 +1098,14 @@ export class AuctionRoom extends DurableObject {
         ).run();
 
 
-console.log("🚀 Updating auction_sessions...");
-console.log("listingId =", this.auctionState.listingId);
-console.log("listingType =", this.auctionState.listingType);
-console.log("userId =", data.userId);
-console.log("bidAmount =", data.bidAmount);
+        console.log("🚀 Updating auction_sessions...");
+        console.log("listingId =", this.auctionState.listingId);
+        console.log("listingType =", this.auctionState.listingType);
+        console.log("userId =", data.userId);
+        console.log("bidAmount =", data.bidAmount);
 
 
-const updateResult = await this.env.DB.prepare(`
+        const updateResult = await this.env.DB.prepare(`
 UPDATE auction_sessions
 SET
     current_bid = ?,
@@ -1113,36 +1115,36 @@ SET
 WHERE listing_id = ?
 AND listing_type = ?
 `)
-.bind(
-    data.bidAmount,
-    data.userId,
-    data.bidAmount,
-    this.auctionState.listingId,
-    this.auctionState.listingType
-)
-.run();
+            .bind(
+                data.bidAmount,
+                data.userId,
+                data.bidAmount,
+                this.auctionState.listingId,
+                this.auctionState.listingType
+            )
+            .run();
 
-console.log("✅ UPDATE RESULT =", updateResult);
+        console.log("✅ UPDATE RESULT =", updateResult);
 
-console.log("Listing Owner =", this.auctionState.listingOwnerId);
-console.log("Bid User =", data.userId);
-await this.env.DB.prepare(`
+        console.log("Listing Owner =", this.auctionState.listingOwnerId);
+        console.log("Bid User =", data.userId);
+        await this.env.DB.prepare(`
 INSERT INTO notifications
 (user_id, listing_id, type, title, link, is_read, created_at)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 `)
-.bind(
-    this.auctionState.listingOwnerId,
-    this.auctionState.listingId,
-    "bid",
-    `${data.userName} placed a bid on your auction.`,
-    `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
-    0,
-    Date.now()
-)
-.run();
+            .bind(
+                this.auctionState.listingOwnerId,
+                this.auctionState.listingId,
+                "bid",
+                `${data.userName} placed a bid on your auction.`,
+                `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                0,
+                Date.now()
+            )
+            .run();
 
-console.log("✅ Notification inserted");
+        console.log("✅ Notification inserted");
 
 
         this.broadcast({

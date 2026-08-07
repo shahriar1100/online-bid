@@ -1,6 +1,7 @@
 // db/model/realestate.ts
 import { drizzle } from "drizzle-orm/d1";
 import { real_estate_listings } from "../schema";
+import { parseDurationToUnix } from "../../lib/date-utils";
 
 
 export interface InsertRealStateInput {
@@ -48,14 +49,19 @@ export interface InsertRealStateInput {
 export async function insertRealEstate(env: { DB: D1Database }, payload: InsertRealStateInput) {
   const db = drizzle(env.DB);
   const now = Math.floor(Date.now() / 1000);
+  const { start, end } = parseDurationToUnix(payload.duration);
 
   const insertRow = {
     user_id: payload.userId,
     title: payload.title,
     category: payload.category,
     subcategory: payload.subcategory,
-    auction_type: payload.auctionType,   
+    auction_type: payload.auctionType,
     duration: payload.duration,
+
+    auction_start_at: start,
+    auction_end_at: end,
+
     description: payload.description,
     media: payload.media ? JSON.stringify(payload.media) : null,
     property_address: payload.propertyAddress,
