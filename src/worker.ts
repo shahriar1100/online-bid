@@ -4081,6 +4081,7 @@ const worker = {
           body.listingId,
           body.listingType
         );
+        console.log("SESSION =", sessionData);
         console.log("========== PAY NOW DEBUG ==========");
         console.log("sessionData =", sessionData);
 
