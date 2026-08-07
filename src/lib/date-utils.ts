@@ -12,7 +12,7 @@
  *  - ALL formatting uses date-fns `format()`.
  */
 
-import { parse, format, isValid } from "date-fns"
+import { parse, format, isValid, addHours } from "date-fns";
 
 // ─── Format tokens ───────────────────────────────────────────────────────────
 
@@ -31,17 +31,19 @@ const DISPLAY_DATETIME_FORMAT = "MM/dd/yyyy hh:mm aa" // aa = AM/PM
  * Returns `null` when the string is absent or unparseable.
  */
 export function parseStorageDate(dateStr: string | null | undefined): Date | null {
-  if (!dateStr || typeof dateStr !== "string") return null
+  if (!dateStr || typeof dateStr !== "string") return null;
 
-  // Full datetime: "DD/MM/YYYY HH:mm"
-  const full = parse(dateStr.trim(), STORAGE_DATETIME_FORMAT, new Date())
-  if (isValid(full)) return full
+  const full = parse(dateStr.trim(), STORAGE_DATETIME_FORMAT, new Date());
+  if (isValid(full)) {
+    return addHours(full, 6);
+  }
 
-  // Date-only: "DD/MM/YYYY"
-  const dateOnly = parse(dateStr.trim(), STORAGE_DATE_FORMAT, new Date())
-  if (isValid(dateOnly)) return dateOnly
+  const dateOnly = parse(dateStr.trim(), STORAGE_DATE_FORMAT, new Date());
+  if (isValid(dateOnly)) {
+    return addHours(dateOnly, 6);
+  }
 
-  return null
+  return null;
 }
 
 /**
