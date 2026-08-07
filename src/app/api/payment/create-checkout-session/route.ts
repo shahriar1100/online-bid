@@ -3,10 +3,6 @@ export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: '2025-10-29.clover',
-});
-
 interface CheckoutRequestBody {
   userId: number;
   selectedAds: number[];
@@ -15,6 +11,11 @@ interface CheckoutRequestBody {
 
 export async function POST(req: Request) {
   try {
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+      apiVersion: "2025-10-29.clover",
+    });
+
     const body = await req.json() as CheckoutRequestBody;
     const { userId, selectedAds, listingTypes } = body;
 
