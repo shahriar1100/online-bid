@@ -237,6 +237,12 @@ export const auction_payments = sqliteTable(
     stripe_session_id: text("stripe_session_id").unique(),
     stripe_payment_intent: text("stripe_payment_intent"),
 
+    invoice_number: text("invoice_number").unique(),
+    invoice_status: text("invoice_status").default("generated"),
+    invoice_generated_at: integer("invoice_generated_at", {
+      mode: "timestamp",
+    }),
+
     status: text("status").notNull().default("pending"),
 
     created_at: integer("created_at", { mode: "timestamp" }).defaultNow(),

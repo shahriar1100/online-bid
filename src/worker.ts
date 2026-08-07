@@ -26,6 +26,8 @@ import { getNotifications } from "./lib/notifications/getNotifications";
 import { getUnreadCount as getNotificationUnreadCount } from "./lib/notifications/getUnreadCount";
 import { markNotificationAsRead } from "./lib/notifications/markNotificationAsRead";
 import { notifications } from "./db/schema";
+import { generateInvoice } from "./lib/invoice/generateInvoice";
+import { generateInvoiceNumber } from "./lib/invoice/invoiceNumber";
 
 
 export interface Env {
@@ -4198,10 +4200,12 @@ const worker = {
             user_id: auth.userId,
             listing_id: body.listingId,
             listing_type: body.listingType,
-            winning_bid: 0,
-            upfront_payment: 0,
-            platform_fee: 0,
-            total_amount: 0,
+
+            winning_bid: sessionData.winning_bid ?? 0,
+            upfront_payment: platform_fee,
+            platform_fee: platform_fee,
+            total_amount: platform_fee,
+
             stripe_session_id: checkout.id,
             status: "pending",
           });
@@ -4262,7 +4266,11 @@ const worker = {
         return new Response(`Webhook Error: ${err.message}`, { status: 400 });
       }
       if (event.type === "checkout.session.completed") {
+        console.log("🔥 WEBHOOK EVENT =", event.type);
+
         const session = event.data.object as Stripe.Checkout.Session;
+
+        console.log("🔥 PAYMENT TYPE =", session.metadata?.type);
         const paymentType = session.metadata?.type;
 
         // ================================
@@ -4272,12 +4280,26 @@ const worker = {
           const db = drizzle(env.DB);
           const now = new Date();
 
+          const invoiceNumber = generateInvoiceNumber();
+
+          // ===== DEBUG START =====
+          console.log("===== INVOICE DEBUG =====");
+          console.log("invoiceNumber =", invoiceNumber);
+          console.log("listingId =", Number(session.metadata?.listingId));
+          console.log("listingType =", session.metadata?.listingType);
+          console.log("userId =", Number(session.metadata?.userId));
+          // ===== DEBUG END =====
+
           await db
             .update(auction_payments)
             .set({
               status: "completed",
               stripe_payment_intent: session.payment_intent as string,
               completed_at: now,
+
+              invoice_number: invoiceNumber,
+              invoice_status: "generated",
+              invoice_generated_at: now,
             })
             .where(
               and(
@@ -4286,6 +4308,30 @@ const worker = {
                 eq(auction_payments.user_id, Number(session.metadata?.userId))
               )
             );
+
+
+          const updated = await db
+            .select()
+            .from(auction_payments)
+            .where(
+              and(
+                eq(auction_payments.listing_id, Number(session.metadata?.listingId)),
+                eq(
+                  auction_payments.listing_type,
+                  session.metadata?.listingType as string
+                ),
+                eq(
+                  auction_payments.user_id,
+                  Number(session.metadata?.userId)
+                )
+              )
+            )
+            .get();
+
+          console.log("UPDATED PAYMENT =", updated);
+
+
+
           const listingId = Number(session.metadata?.listingId);
           const listingType = session.metadata?.listingType as
             | "realestate"
@@ -4370,6 +4416,128 @@ const worker = {
 
       return new Response(JSON.stringify({ received: true }), {
         status: 200,
+      });
+    }
+
+    // ========================
+    // DOWNLOAD INVOICE PDF
+    // ========================
+    if (
+      url.pathname.startsWith("/api/invoice/") &&
+      req.method === "GET"
+    ) {
+      const invoiceNumber = url.pathname.split("/").pop();
+
+      if (!invoiceNumber) {
+        return new Response(
+          JSON.stringify({ error: "Invoice number is required" }),
+          {
+            status: 400,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
+
+      const db = drizzle(env.DB);
+
+      const payment = await db
+        .select()
+        .from(auction_payments)
+        .where(eq(auction_payments.invoice_number, invoiceNumber))
+        .get();
+
+      if (!payment) {
+        return new Response(
+          JSON.stringify({
+            error: "Invoice not found",
+          }),
+          {
+            status: 404,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
+
+      const buyer = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, payment.user_id))
+        .get();
+
+      if (!buyer) {
+        return new Response(
+          JSON.stringify({
+            error: "Buyer not found",
+          }),
+          {
+            status: 404,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
+
+      const listingTable = getListingTable(payment.listing_type);
+
+      if (!listingTable) {
+        return new Response(
+          JSON.stringify({
+            error: "Invalid listing type",
+          }),
+          {
+            status: 400,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
+
+      const listing = await db
+        .select()
+        .from(listingTable)
+        .where(eq(listingTable.id, payment.listing_id))
+        .get();
+
+      if (!listing) {
+        return new Response(
+          JSON.stringify({
+            error: "Listing not found",
+          }),
+          {
+            status: 404,
+            headers: getCorsHeaders(),
+          }
+        );
+      }
+
+
+      const pdfBytes = await generateInvoice({
+        invoiceNumber: payment.invoice_number!,
+        invoiceDate: (payment.completed_at ?? payment.created_at ?? new Date())
+          .toLocaleDateString(),
+
+        customerName: buyer.name,
+        customerEmail: buyer.email,
+
+        propertyTitle: (listing as any).title,
+        listingId: payment.listing_id,
+        auctionId: payment.id,
+
+        paymentId: payment.stripe_payment_intent ?? "",
+        paymentMethod: "Card",
+
+        amount: payment.total_amount,
+        currency: "$",
+
+        companyName: "IBIDS 365",
+        companyEmail: "support@ibids365.com",
+        companyWebsite: "https://ibids365.com",
+      });
+
+      return new Response(pdfBytes.buffer as ArrayBuffer, {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Disposition":
+            `attachment; filename="${payment.invoice_number}.pdf"`,
+        },
       });
     }
 
@@ -4479,12 +4647,19 @@ const worker = {
 
         const db = drizzle(env.DB);
 
+        const completedAt = new Date();
+        const invoiceNumber = generateInvoiceNumber();
+
         await db
           .update(auction_payments)
           .set({
             status: "completed",
             stripe_payment_intent: session.payment_intent as string,
-            completed_at: new Date(),
+            completed_at: completedAt,
+
+            invoice_number: invoiceNumber,
+            invoice_status: "generated",
+            invoice_generated_at: completedAt,
           })
           .where(
             and(
@@ -4493,6 +4668,9 @@ const worker = {
               eq(auction_payments.user_id, auth.userId)
             )
           );
+
+        console.log("✅ Invoice Generated:", invoiceNumber);
+
 
         const listingId = Number(session.metadata?.listingId);
         const listingType = session.metadata?.listingType as
@@ -4520,14 +4698,29 @@ const worker = {
 
         console.log("💬 Chat room ready:", room.id);
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            roomId: room.id,
-            room,
-          }),
-          { headers: getCorsHeaders() }  // ✅ Add CORS headers
-        );
+        const payment = await db
+  .select()
+  .from(auction_payments)
+  .where(
+    and(
+      eq(auction_payments.listing_id, listingId),
+      eq(auction_payments.listing_type, listingType),
+      eq(auction_payments.user_id, auth.userId)
+    )
+  )
+  .get();
+
+return new Response(
+  JSON.stringify({
+    success: true,
+    roomId: room.id,
+    room,
+    invoiceNumber: payment?.invoice_number,
+  }),
+  {
+    headers: getCorsHeaders(),
+  }
+);
 
       } catch (err) {
         console.error("Verify payment error:", err);

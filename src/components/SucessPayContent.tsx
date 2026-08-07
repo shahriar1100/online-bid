@@ -72,8 +72,12 @@ import Header from "src/components/header";
 import successImage from "src/app/assets/images/seller/sucess.png";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+
+
 interface VerifyPaymentResponse {
   success: boolean;
+  roomId?: number;
+  invoiceNumber?: string;
   error?: string;
 }
 
@@ -122,11 +126,28 @@ export default function SucessPay() {
     }
   )
    .then(res => res.json() as Promise<VerifyPaymentResponse>)
-    .then(data => {
-      if (!data.success) {
-        console.error("Payment verification failed", data);
-      }
-    })
+    .then((data) => {
+  if (!data.success) {
+    console.error("Payment verification failed", data);
+    return;
+  }
+
+  // Auto Download Invoice
+  if (data.invoiceNumber) {
+    const link = document.createElement("a");
+
+    link.href =
+      `${process.env.NEXT_PUBLIC_WRANGLER_API_URL}/api/invoice/${data.invoiceNumber}`;
+
+    link.download = `${data.invoiceNumber}.pdf`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+  }
+})
     .catch(err => {
       console.error("Verify payment error:", err);
     });
