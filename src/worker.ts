@@ -4133,7 +4133,12 @@ const worker = {
             headers: getCorsHeaders(),
           });
         }
-
+console.log("========== WINNER CHECK ==========");
+console.log("auth.userId =", auth.userId);
+console.log("session winner =", sessionData?.winner_user_id);
+console.log("session status =", sessionData?.status);
+console.log("winning bid =", sessionData?.winning_bid);
+console.log("current bid =", sessionData?.current_bid);
         if (sessionData.winner_user_id !== auth.userId) {
           return new Response(JSON.stringify({ error: "Not auction winner" }), {
             status: 403,
