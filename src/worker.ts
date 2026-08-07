@@ -142,7 +142,14 @@ async function finalizeAuctionIfNeeded(
   listingType: "realestate" | "automobile" | "business"
 ) {
   const db = drizzle(env.DB);
-  const now = Math.floor(Date.now() / 1000);
+const now = Math.floor(Date.now() / 1000);
+
+console.log("========== TIME DEBUG ==========");
+console.log("UNIX =", now);
+console.log("LOCAL =", new Date().toString());
+console.log("ISO =", new Date().toISOString());
+console.log("TZ =", Intl.DateTimeFormat().resolvedOptions().timeZone);
+console.log("===============================");
 
   console.log("========== FINALIZE ==========");
   console.log("listingId =", listingId);

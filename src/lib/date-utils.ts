@@ -223,4 +223,25 @@ export function parseStorageSingleDateTime(str: string | null | undefined): { da
 }
 
 
+export function parseDurationToUnix(duration: string): {
+  start: number;
+  end: number;
+} {
+  const parts = duration.split(" to ");
 
+  if (parts.length !== 2) {
+    throw new Error(`Invalid duration: ${duration}`);
+  }
+
+  const startDate = parseStorageDate(parts[0].trim());
+  const endDate = parseStorageDate(parts[1].trim());
+
+  if (!startDate || !endDate) {
+    throw new Error(`Failed to parse duration: ${duration}`);
+  }
+
+  return {
+    start: Math.floor(startDate.getTime() / 1000),
+    end: Math.floor(endDate.getTime() / 1000),
+  };
+}
