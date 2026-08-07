@@ -63,7 +63,7 @@ function parseDuration(duration: string): { start: number; end: number } {
   // Expected format: DD/MM/YYYY HH:mm
   const [startStr, endStr] = duration.split("to").map(s => s.trim());
 
-const parse = (s: string) => {
+  const parse = (s: string) => {
     const [datePart, timePart] = s.split(" ");
     const [day, month, year] = datePart.split("/").map(Number);
     const [hour, minute] = timePart.split(":").map(Number);
@@ -84,7 +84,7 @@ const parse = (s: string) => {
     console.log("UNIX =", result);
 
     return result;
-};
+  };
 
   return {
     start: parse(startStr),
@@ -167,8 +167,18 @@ async function finalizeAuctionIfNeeded(
 
   // ✅ FIX: Restore the old logic for existing session
   if (existingSession) {
+    console.log("========== EXISTING SESSION ==========");
+    console.log("DB STATUS =", existingSession.status);
+    console.log("DB END =", existingSession.end_time);
+    console.log("NOW =", now);
+    console.log(
+      "NOW < END =",
+      existingSession.end_time ? now < existingSession.end_time : "end_time is null"
+    );
     // If still live (not ended yet), return as is
     if (existingSession.end_time && now < existingSession.end_time) {
+      console.log("❌ Returning existing session because NOW < END");
+      console.log(`🔍 Auction ended but not finalized, updating...`);
       console.log(`🔍 Auction still live, returning existing session`);
       return existingSession;
     }
@@ -195,7 +205,7 @@ async function finalizeAuctionIfNeeded(
       .limit(1)
       .get();
 
-      console.log("HIGHEST BID FROM DB =", highestBid);
+    console.log("HIGHEST BID FROM DB =", highestBid);
 
     const winnerUserId = highestBid?.user_id ?? null;
     const winningBidAmount = highestBid?.bid_amount ?? null;
@@ -251,8 +261,8 @@ async function finalizeAuctionIfNeeded(
   }
 
   console.log("========== LISTING DEBUG ==========");
-console.log("RAW DURATION =", listing.duration);
-console.log("LISTING =", listing);
+  console.log("RAW DURATION =", listing.duration);
+  console.log("LISTING =", listing);
 
   console.log(`🔍 Found listing, duration: "${listing.duration}"`);
 
@@ -4042,7 +4052,7 @@ const worker = {
         });
 
         console.log("========== PAY NOW AUTH ==========");
-console.log("AUTH HEADER =", req.headers.get("Authorization"));
+        console.log("AUTH HEADER =", req.headers.get("Authorization"));
 
         const auth = await authenticateRequest(req, env);
         if (!auth) {
@@ -4060,11 +4070,11 @@ console.log("AUTH HEADER =", req.headers.get("Authorization"));
         };
 
         console.log("========== PAY NOW ==========");
-console.log("listingId =", body.listingId);
-console.log("listingType =", body.listingType);
-console.log("userId =", auth.userId);
+        console.log("listingId =", body.listingId);
+        console.log("listingType =", body.listingType);
+        console.log("userId =", auth.userId);
 
-console.log("➡️ Calling finalizeAuctionIfNeeded...");
+        console.log("➡️ Calling finalizeAuctionIfNeeded...");
 
         const sessionData = await finalizeAuctionIfNeeded(
           env,
@@ -4075,10 +4085,10 @@ console.log("➡️ Calling finalizeAuctionIfNeeded...");
         console.log("sessionData =", sessionData);
 
         console.log("status =", sessionData?.status);
-console.log("winner =", sessionData?.winner_user_id);
-console.log("start =", sessionData?.start_time);
-console.log("end =", sessionData?.end_time);
-console.log("now =", Math.floor(Date.now() / 1000));
+        console.log("winner =", sessionData?.winner_user_id);
+        console.log("start =", sessionData?.start_time);
+        console.log("end =", sessionData?.end_time);
+        console.log("now =", Math.floor(Date.now() / 1000));
 
         if (!sessionData || sessionData.status !== "ended") {
           return new Response(JSON.stringify({ error: "Auction not ended" }), {
