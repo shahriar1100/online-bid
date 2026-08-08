@@ -73,3 +73,17 @@ export async function markNotificationAsRead(
 
   return (await res.json()) as NotificationResponse;
 }
+
+export async function markAllNotificationsAsRead(): Promise<NotificationResponse> {
+  const token = localStorage.getItem("authToken") || "";
+
+  const res = await fetch(`${API}/api/notifications/mark-all-read`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return (await res.json()) as NotificationResponse;
+}

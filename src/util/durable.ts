@@ -731,60 +731,87 @@ export class AuctionRoom extends DurableObject {
         // =============================
 
         if (this.auctionState.highestBidder) {
-            console.log("🚀 Inserting winner notification...");
 
-            // Winner notification
-            await this.env.DB.prepare(`
-        INSERT INTO notifications
-        (user_id, listing_id, type, title, link, is_read, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-                this.auctionState.highestBidder.userId,
-                this.auctionState.listingId,
-                "auction_won",
-                "🏆 Congratulations! You won the auction.",
-                `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
-                0,
-                Date.now()
-            ).run();
+            // =============================
+            // Prevent duplicate winner notification
+            // =============================
+            const existingWinnerNotification = await this.env.DB.prepare(`
+        SELECT id
+        FROM notifications
+        WHERE user_id = ?
+          AND listing_id = ?
+          AND type = 'auction_won'
+        LIMIT 1
+    `)
+                .bind(
+                    this.auctionState.highestBidder.userId,
+                    this.auctionState.listingId
+                )
+                .first();
 
-            console.log("✅ Winner notification inserted");
+            if (!existingWinnerNotification) {
 
-
-            // Loser notifications
-            const losers = await this.env.DB.prepare(`
-        SELECT DISTINCT user_id
-        FROM bids
-        WHERE listing_id = ?
-        AND listing_type = ?
-        AND user_id != ?
-    `).bind(
-                this.auctionState.listingId,
-                this.auctionState.listingType,
-                this.auctionState.highestBidder.userId
-            ).all();
-
-            for (const loser of losers.results as { user_id: number }[]) {
+                console.log("🚀 Inserting winner notification...");
 
                 await this.env.DB.prepare(`
             INSERT INTO notifications
             (user_id, listing_id, type, title, link, is_read, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-                    loser.user_id,
-                    this.auctionState.listingId,
-                    "auction_lost",
-                    "❌ The auction has ended. You didn't win this auction.",
-                    `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
-                    0,
-                    Date.now()
-                ).run();
+        `)
+                    .bind(
+                        this.auctionState.highestBidder.userId,
+                        this.auctionState.listingId,
+                        "auction_won",
+                        "🏆 Congratulations! You won the auction.",
+                        `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                        0,
+                        Date.now()
+                    )
+                    .run();
 
+                console.log("✅ Winner notification inserted");
+
+            } else {
+                console.log("⚠️ Winner notification already exists. Skipping...");
+            }
+
+            // =============================
+            // Loser notifications
+            // =============================
+            const losers = await this.env.DB.prepare(`
+        SELECT DISTINCT user_id
+        FROM bids
+        WHERE listing_id = ?
+          AND listing_type = ?
+          AND user_id != ?
+    `)
+                .bind(
+                    this.auctionState.listingId,
+                    this.auctionState.listingType,
+                    this.auctionState.highestBidder.userId
+                )
+                .all();
+
+            for (const loser of losers.results as { user_id: number }[]) {
+                await this.env.DB.prepare(`
+            INSERT INTO notifications
+            (user_id, listing_id, type, title, link, is_read, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `)
+                    .bind(
+                        loser.user_id,
+                        this.auctionState.listingId,
+                        "auction_lost",
+                        "❌ The auction has ended. You didn't win this auction.",
+                        `/buyer/${this.auctionState.listingType}/${this.auctionState.listingId}`,
+                        0,
+                        Date.now()
+                    )
+                    .run();
             }
 
             console.log("✅ Loser notifications inserted");
             console.log("🚀 Winner/Loser notification block finished");
-
         }
 
         this.broadcast({

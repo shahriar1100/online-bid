@@ -42,6 +42,7 @@ import {
   Trophy,
   CircleHelp,
 } from "lucide-react";
+import { markAllNotificationsAsRead } from "../services/notification.service";
 
 interface NavbarProps {
   onAuthChange?: () => void;
@@ -336,10 +337,38 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
       setShowNotifications(false);
 
       if (item.link) {
+        router.push(item.link);
+      } else {
         router.push("/chat");
       }
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  async function handleMarkAllAsRead() {
+    try {
+      const result = await markAllNotificationsAsRead();
+
+      if (!result.success) {
+        console.error("Failed to mark all notifications as read");
+        return;
+      }
+
+      // Make every notification read in UI
+      setNotifications((prev) =>
+        prev.map((notification) => ({
+          ...notification,
+          is_read: true,
+        })),
+      );
+
+      // Reset notification badge
+      setUnreadCount(0);
+
+      console.log("✅ All notifications marked as read");
+    } catch (err) {
+      console.error("Mark all notifications as read error:", err);
     }
   }
 
@@ -560,7 +589,7 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
             <AnimatedThemeToggler className="rounded-full p-2 transition-all hover:bg-gray-200 dark:hover:bg-gray-700" />
             {/*  If logged in show user icon with dropdown */}
 
-            {/* 🔔 Notification Bell এখানে */}
+            {/* 🔔 Notification Bell  */}
             {user && (
               <div className="relative" ref={notificationRef}>
                 <button
@@ -587,8 +616,18 @@ function NavbarContent({ onAuthChange }: NavbarProps) {
 
                 {showNotifications && (
                   <div className="absolute right-0 mt-1 w-[360px] bg-white dark:bg-gray-900 rounded-xl shadow-xl border dark:border-gray-700 z-50 overflow-hidden">
-                    <div className="px-4 py-3 border-b dark:border-gray-700 font-semibold">
-                      Notifications
+                    <div className="px-4 py-3 border-b dark:border-gray-700 flex items-center justify-between">
+                      <span className="font-semibold">Notifications</span>
+
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllAsRead}
+                          className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
                     </div>
 
                     <div className="max-h-96 overflow-y-auto">

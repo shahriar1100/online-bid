@@ -12,7 +12,7 @@
  *  - ALL formatting uses date-fns `format()`.
  */
 
-import { parse, format, isValid } from "date-fns"
+import { parse, format, isValid, addHours } from "date-fns";
 
 // ─── Format tokens ───────────────────────────────────────────────────────────
 
@@ -34,12 +34,18 @@ export function parseStorageDate(dateStr: string | null | undefined): Date | nul
   if (!dateStr || typeof dateStr !== "string") return null
 
   // Full datetime: "DD/MM/YYYY HH:mm"
-  const full = parse(dateStr.trim(), STORAGE_DATETIME_FORMAT, new Date())
-  if (isValid(full)) return full
+  const full = parse(dateStr.trim(), STORAGE_DATETIME_FORMAT, new Date());
+  console.log("========== PARSE DEBUG ==========");
+console.log("INPUT =", dateStr);
+console.log("PARSED =", full.toString());
+console.log("ISO =", full.toISOString());
+console.log("UNIX =", Math.floor(full.getTime() / 1000));
+console.log("FIXED UNIX =", Math.floor(addHours(full, -6).getTime() / 1000));
+  if (isValid(full)) return addHours(full, -6);
 
   // Date-only: "DD/MM/YYYY"
   const dateOnly = parse(dateStr.trim(), STORAGE_DATE_FORMAT, new Date())
-  if (isValid(dateOnly)) return dateOnly
+  if (isValid(dateOnly)) return addHours(dateOnly, -6);
 
   return null
 }

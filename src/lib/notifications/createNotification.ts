@@ -7,12 +7,14 @@ export async function createNotificationRecord(
     userId: number;
     listingId?: number;
     type:
-      | "message"
-      | "outbid"
-      | "auction_won"
-      | "auction_ended"
-      | "listing_approved"
-      | "listing_rejected";
+    | "message"
+    | "outbid"
+    | "auction_won"
+    | "auction_ended"
+    | "listing_approved"
+    | "listing_rejected"
+    | "payment_success"
+    | "payment_failed";
     title: string;
     link?: string;
   }

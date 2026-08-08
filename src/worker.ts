@@ -25,10 +25,12 @@ import { markMessagesAsRead } from "./lib/chat/markMessagesAsRead";
 import { getNotifications } from "./lib/notifications/getNotifications";
 import { getUnreadCount as getNotificationUnreadCount } from "./lib/notifications/getUnreadCount";
 import { markNotificationAsRead } from "./lib/notifications/markNotificationAsRead";
+import { markAllNotificationsAsRead } from "./lib/notifications/markAllNotificationsAsRead";
 import { notifications } from "./db/schema";
 import { generateInvoice } from "./lib/invoice/generateInvoice";
 import { generateInvoiceNumber } from "./lib/invoice/invoiceNumber";
 import { parseDurationToUnix } from "./lib/date-utils";
+import { createNotificationRecord } from "./lib/notifications/createNotification";
 
 
 export interface Env {
@@ -142,14 +144,14 @@ async function finalizeAuctionIfNeeded(
   listingType: "realestate" | "automobile" | "business"
 ) {
   const db = drizzle(env.DB);
-const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000);
 
-console.log("========== TIME DEBUG ==========");
-console.log("UNIX =", now);
-console.log("LOCAL =", new Date().toString());
-console.log("ISO =", new Date().toISOString());
-console.log("TZ =", Intl.DateTimeFormat().resolvedOptions().timeZone);
-console.log("===============================");
+  console.log("========== TIME DEBUG ==========");
+  console.log("UNIX =", now);
+  console.log("LOCAL =", new Date().toString());
+  console.log("ISO =", new Date().toISOString());
+  console.log("TZ =", Intl.DateTimeFormat().resolvedOptions().timeZone);
+  console.log("===============================");
 
   console.log("========== FINALIZE ==========");
   console.log("listingId =", listingId);
@@ -179,36 +181,36 @@ console.log("===============================");
   // ✅ FIX: Restore the old logic for existing session
   if (existingSession) {
     const listingTable = getListingTable(listingType);
-if (!listingTable) return existingSession;
+    if (!listingTable) return existingSession;
 
-const listing = await db
-  .select()
-  .from(listingTable)
-  .where(eq(listingTable.id, listingId))
-  .get();
+    const listing = await db
+      .select()
+      .from(listingTable)
+      .where(eq(listingTable.id, listingId))
+      .get();
 
-if (listing) {
-  // const { start, end } = parseDuration(listing.duration);
-  const { start, end } = parseDurationToUnix(listing.duration);
-  
+    if (listing) {
+      // const { start, end } = parseDuration(listing.duration);
+      const { start, end } = parseDurationToUnix(listing.duration);
 
-  if (
-    existingSession.start_time !== start ||
-    existingSession.end_time !== end
-  ) {
-    await db
-      .update(auction_sessions)
-      .set({
-        start_time: start,
-        end_time: end,
-        updated_at: new Date(),
-      })
-      .where(eq(auction_sessions.id, existingSession.id));
 
-    existingSession.start_time = start;
-    existingSession.end_time = end;
-  }
-}
+      if (
+        existingSession.start_time !== start ||
+        existingSession.end_time !== end
+      ) {
+        await db
+          .update(auction_sessions)
+          .set({
+            start_time: start,
+            end_time: end,
+            updated_at: new Date(),
+          })
+          .where(eq(auction_sessions.id, existingSession.id));
+
+        existingSession.start_time = start;
+        existingSession.end_time = end;
+      }
+    }
     console.log("========== EXISTING SESSION ==========");
     console.log("DB STATUS =", existingSession.status);
     console.log("DB END =", existingSession.end_time);
@@ -503,6 +505,13 @@ const worker = {
       req.method === "POST"
     ) {
       return markNotificationAsRead(req, env);
+    }
+
+    if (
+      url.pathname === "/api/notifications/mark-all-read" &&
+      req.method === "POST"
+    ) {
+      return markAllNotificationsAsRead(req, env);
     }
 
 
@@ -4140,12 +4149,12 @@ const worker = {
             headers: getCorsHeaders(),
           });
         }
-console.log("========== WINNER CHECK ==========");
-console.log("auth.userId =", auth.userId);
-console.log("session winner =", sessionData?.winner_user_id);
-console.log("session status =", sessionData?.status);
-console.log("winning bid =", sessionData?.winning_bid);
-console.log("current bid =", sessionData?.current_bid);
+        console.log("========== WINNER CHECK ==========");
+        console.log("auth.userId =", auth.userId);
+        console.log("session winner =", sessionData?.winner_user_id);
+        console.log("session status =", sessionData?.status);
+        console.log("winning bid =", sessionData?.winning_bid);
+        console.log("current bid =", sessionData?.current_bid);
         if (sessionData.winner_user_id !== auth.userId) {
           return new Response(JSON.stringify({ error: "Not auction winner" }), {
             status: 403,
@@ -4258,15 +4267,15 @@ console.log("current bid =", sessionData?.current_bid);
           // ================================
           // Payment Required Notification
           // ================================
-          await db.insert(notifications).values({
-            user_id: auth.userId,
-            listing_id: body.listingId,
-            type: "payment_required",
-            title: "💳 You won the auction. Complete your payment.",
-            link: `/buyer/${body.listingType}/${body.listingId}`,
-            is_read: false,
-            created_at: new Date(),
-          });
+          // await db.insert(notifications).values({
+          //   user_id: auth.userId,
+          //   listing_id: body.listingId,
+          //   type: "payment_required",
+          //   title: "💳 You won the auction. Complete your payment.",
+          //   link: `/buyer/${body.listingType}/${body.listingId}`,
+          //   is_read: false,
+          //   created_at: new Date(),
+          // });
 
           console.log("✅ Payment Required notification inserted");
         }
@@ -4319,143 +4328,14 @@ console.log("current bid =", sessionData?.current_bid);
         console.log("🔥 PAYMENT TYPE =", session.metadata?.type);
         const paymentType = session.metadata?.type;
 
+        console.log("======== PAYMENT TYPE ========");
+        console.log("paymentType =", paymentType);
+        console.log("metadata =", session.metadata);
+
         // ================================
         // 🔥 AUCTION PAYMENT
         // ================================
-        if (paymentType === "auction") {
-          const db = drizzle(env.DB);
-          const now = new Date();
 
-          const invoiceNumber = generateInvoiceNumber();
-
-          // ===== DEBUG START =====
-          console.log("===== INVOICE DEBUG =====");
-          console.log("invoiceNumber =", invoiceNumber);
-          console.log("listingId =", Number(session.metadata?.listingId));
-          console.log("listingType =", session.metadata?.listingType);
-          console.log("userId =", Number(session.metadata?.userId));
-          // ===== DEBUG END =====
-
-          await db
-            .update(auction_payments)
-            .set({
-              status: "completed",
-              stripe_payment_intent: session.payment_intent as string,
-              completed_at: now,
-
-              invoice_number: invoiceNumber,
-              invoice_status: "generated",
-              invoice_generated_at: now,
-            })
-            .where(
-              and(
-                eq(auction_payments.listing_id, Number(session.metadata?.listingId)),
-                eq(auction_payments.listing_type, session.metadata?.listingType as string),
-                eq(auction_payments.user_id, Number(session.metadata?.userId))
-              )
-            );
-
-
-          const updated = await db
-            .select()
-            .from(auction_payments)
-            .where(
-              and(
-                eq(auction_payments.listing_id, Number(session.metadata?.listingId)),
-                eq(
-                  auction_payments.listing_type,
-                  session.metadata?.listingType as string
-                ),
-                eq(
-                  auction_payments.user_id,
-                  Number(session.metadata?.userId)
-                )
-              )
-            )
-            .get();
-
-          console.log("UPDATED PAYMENT =", updated);
-
-
-
-          const listingId = Number(session.metadata?.listingId);
-          const listingType = session.metadata?.listingType as
-            | "realestate"
-            | "automobile"
-            | "business";
-
-          const buyerId = Number(session.metadata?.userId);
-          const sellerId = Number(session.metadata?.sellerId);
-
-          // Create room if it doesn't exist
-          const room = await createChatRoom(db, {
-            listingId,
-            listingType,
-            buyerId,
-            sellerId,
-          });
-
-          console.log("💬 Chat room =", room.id);
-
-          // ================================
-          // Payment Successful Notification
-          // ================================
-          await db.insert(notifications).values({
-            user_id: buyerId,
-            listing_id: listingId,
-            type: "payment_successful",
-            title: "✅ Payment completed successfully.",
-            link: `/buyer/${listingType}/${listingId}`,
-            is_read: false,
-            created_at: new Date(),
-          });
-
-          console.log("✅ Payment success notification inserted");
-
-
-          console.log(
-            `✅ Auction payment completed for ${session.metadata?.listingType}/${session.metadata?.listingId}`
-          );
-        }
-
-        // ================================
-        // ⭐ FEATURED LISTINGS
-        // ================================
-        if (paymentType === "featured") {
-          const db = drizzle(env.DB);
-
-          try {
-            const selectedAds = JSON.parse(session.metadata?.selectedAds || "[]") as number[];
-            const listingTypes = JSON.parse(session.metadata?.listingTypes || "[]") as string[];
-            const userId = Number(session.metadata?.userId);
-
-            const featuredUntil =
-              Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
-
-            for (let i = 0; i < selectedAds.length; i++) {
-              const adId = selectedAds[i];
-              const type = listingTypes[i] || "realestate";
-
-              if (type === "realestate") {
-                await db.update(real_estate_listings)
-                  .set({ is_featured: true, featured_until: featuredUntil })
-                  .where(eq(real_estate_listings.id, adId));
-              } else if (type === "automobile") {
-                await db.update(automobile_listings)
-                  .set({ is_featured: true, featured_until: featuredUntil })
-                  .where(eq(automobile_listings.id, adId));
-              } else if (type === "business") {
-                await db.update(business_listings)
-                  .set({ is_featured: true, featured_until: featuredUntil })
-                  .where(eq(business_listings.id, adId));
-              }
-            }
-
-            console.log(`✅ Featured ${selectedAds.length} ads for user ${userId}`);
-          } catch (err) {
-            console.error("Featured listing webhook error:", err);
-          }
-        }
       }
 
 
@@ -4670,6 +4550,8 @@ console.log("current bid =", sessionData?.current_bid);
       }
       try {
         const { sessionId } = await req.json() as { sessionId: string };
+        console.log("🚀 VERIFY PAYMENT API HIT");
+        console.log("SESSION ID =", sessionId);
 
         const stripe = new Stripe(env.STRIPE_SECRET_KEY, {
           apiVersion: "2025-10-29.clover",
@@ -4715,9 +4597,6 @@ console.log("current bid =", sessionData?.current_bid);
             )
           );
 
-        console.log("✅ Invoice Generated:", invoiceNumber);
-
-
         const listingId = Number(session.metadata?.listingId);
         const listingType = session.metadata?.listingType as
           | "realestate"
@@ -4742,31 +4621,41 @@ console.log("current bid =", sessionData?.current_bid);
           })
           .where(eq(chatRooms.id, room.id));
 
+        await createNotificationRecord(db, {
+          userId: auth.userId,
+          listingId,
+          type: "payment_success",
+          title: "✅ Payment completed successfully.",
+          link: `/buyer/${listingType}/${listingId}`,
+        });
+
+        console.log("✅ PAYMENT SUCCESS NOTIFICATION INSERTED");
+
         console.log("💬 Chat room ready:", room.id);
 
         const payment = await db
-  .select()
-  .from(auction_payments)
-  .where(
-    and(
-      eq(auction_payments.listing_id, listingId),
-      eq(auction_payments.listing_type, listingType),
-      eq(auction_payments.user_id, auth.userId)
-    )
-  )
-  .get();
+          .select()
+          .from(auction_payments)
+          .where(
+            and(
+              eq(auction_payments.listing_id, listingId),
+              eq(auction_payments.listing_type, listingType),
+              eq(auction_payments.user_id, auth.userId)
+            )
+          )
+          .get();
 
-return new Response(
-  JSON.stringify({
-    success: true,
-    roomId: room.id,
-    room,
-    invoiceNumber: payment?.invoice_number,
-  }),
-  {
-    headers: getCorsHeaders(),
-  }
-);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            roomId: room.id,
+            room,
+            invoiceNumber: payment?.invoice_number,
+          }),
+          {
+            headers: getCorsHeaders(),
+          }
+        );
 
       } catch (err) {
         console.error("Verify payment error:", err);
