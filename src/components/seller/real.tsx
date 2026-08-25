@@ -509,14 +509,18 @@ const RealState = forwardRef<RealStateHandle, { auctionType?: string; subcategor
     }
   }
 
-  const handleDateTimeSelect = (date: Date | null, time: string) => {
-    setSelectedDate(date)
-    setSelectedTime(time)
-    // Store in DB format: DD/MM/YYYY HH:mm
-    setValue("auctionDate", date && time ? formatForStorage(date, time) : "")
-    if (errors.auctionDate) clearErrors("auctionDate")
-    setIsCalendarOpen(false)
-  }
+const handleDateTimeSelect = (date: Date | null, time: string) => {
+  setSelectedDate(date)
+  setSelectedTime(time)
+
+  setValue(
+    "auctionDate",
+    date && time ? formatForStorage(date, time) : ""
+  )
+
+  if (errors.auctionDate) clearErrors("auctionDate")
+  setIsCalendarOpen(false)
+}
 
   const handleCalendarClose = () => {
     setIsCalendarOpen(false)

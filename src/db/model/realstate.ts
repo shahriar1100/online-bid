@@ -29,6 +29,7 @@ export interface InsertRealStateInput {
   features?: string[];
   auction_start_price?: string;
   auctionDate?: string;
+  auctionTimezone?: string;
   monthly?: string;
   expiry?: string;
   ownershiptype?: string;
@@ -80,6 +81,7 @@ export async function insertRealEstate(env: { DB: D1Database }, payload: InsertR
     features: payload.features ? JSON.stringify(payload.features) : null,
     auction_start_price: payload.auction_start_price ?? null,
     auction_date: payload.auctionDate ?? null,
+    auction_timezone: payload.auctionTimezone ?? "America/Chicago",
     monthly: payload.monthly ?? null,
     expiry: payload.expiry ?? null,
     ownership_type: payload.ownershiptype ?? null,

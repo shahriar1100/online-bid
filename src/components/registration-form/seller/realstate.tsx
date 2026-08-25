@@ -66,9 +66,11 @@ import {
   PopoverTrigger,
 } from "src/components/ui/popover";
 import { format } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
 import { toast } from "sonner";
 import DateRangePicker from "src/components/ui/custom-calendar";
 import DateTimePicker from "src/components/ui/real-custom-calender";
+import tzlookup from "tz-lookup";
 
 interface RealEstateAd {
   id: string;
@@ -348,6 +350,8 @@ export default function RealStateRegistrationForm({
   const [aselectedDate, asetSelectedDate] = useState<Date | null>(null);
   const [aselectedTime, asetSelectedTime] = useState("");
   const [aisCalendarOpen, asetIsCalendarOpen] = useState(false);
+  const [propertyTimeZone, setPropertyTimeZone] =
+    useState<string>("America/Chicago");
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [deletedFiles, setDeletedFiles] = useState<
     { name: string; size: number; type: string; url: string }[]
@@ -597,18 +601,19 @@ export default function RealStateRegistrationForm({
   //     setSelectedTime(time)
   //     setIsCalendarOpen(false)
   // }
-  const handleDateTimeSelect = (
-    newStartDate: Date | null,
-    newStartTime: string,
-    newEndDate: Date | null,
-    newEndTime: string,
-  ) => {
-    setStartDate(newStartDate);
-    setStartTime(newStartTime);
-    setEndDate(newEndDate);
-    setEndTime(newEndTime);
-    setIsCalendarOpen(false);
+  const handleDateTimeSelect = (date: Date | null, time: string) => {
+    asetSelectedDate(date);
+    asetSelectedTime(time);
+
+    setValue("auctionDate", date && time ? formatForStorage(date, time) : "");
+
+    if (errors.auctionDate) {
+      clearErrors("auctionDate");
+    }
+
+    asetIsCalendarOpen(false);
   };
+
   const handleCalendarClose = () => {
     setIsCalendarOpen(false);
   };
@@ -713,6 +718,14 @@ export default function RealStateRegistrationForm({
               );
               if (matchedCity) {
                 setValue("propertyCity", matchedCity.name);
+                if (matchedCity.latitude && matchedCity.longitude) {
+                  const timezone = tzlookup(
+                    Number(matchedCity.latitude),
+                    Number(matchedCity.longitude),
+                  );
+
+                  setPropertyTimeZone(timezone);
+                }
                 // Hybrid pincode: try locations.json first
                 const legacyCountry = locationData.countries.find(
                   (lc) => lc.name === data.propertyCountry,
@@ -1062,7 +1075,7 @@ export default function RealStateRegistrationForm({
         auctionType: data.auctionType || adDetails?.auctionType || "",
         duration: data.duration || adDetails?.duration || "",
         description: data.description || adDetails?.description || "",
-        
+
         media: media.length > 0 ? media : adDetails?.media || [],
         propertyAddress:
           data.propertyAddress || adDetails?.propertyAddress || "",
@@ -1104,8 +1117,8 @@ export default function RealStateRegistrationForm({
           Boolean(data.agreeTerms) || Boolean(adDetails?.agreeTerms) || false,
       };
       console.log("MEDIA =", media);
-console.log("PAYLOAD MEDIA =", payload.media);
-console.log("PAYLOAD =", payload);
+      console.log("PAYLOAD MEDIA =", payload.media);
+      console.log("PAYLOAD =", payload);
 
       // Send directly to your Cloudflare Worker (bypass Next.js route)
       let headerPayload: Record<string, string> = {
@@ -2188,8 +2201,9 @@ console.log("PAYLOAD =", payload);
                     <DateTimePicker
                       selectedDate={aselectedDate}
                       selectedTime={aselectedTime}
-                      onSelect={ahandleDateTimeSelect}
-                      onClose={ahandleCalendarClose}
+                      onSelect={handleDateTimeSelect}
+                      onClose={handleCalendarClose}
+                      timeZone={propertyTimeZone}
                     />
                   </DialogContent>
                 </Dialog>

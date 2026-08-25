@@ -263,10 +263,12 @@ export class AuctionRoom extends DurableObject {
         const { start, end } = parseDurationToUnix(listing.duration);
 
         console.log("========== RESYNC ==========");
-        console.log("RAW DURATION =", listing.duration);
-        console.log("PARSED START =", start, new Date(start * 1000).toISOString());
-        console.log("PARSED END   =", end, new Date(end * 1000).toISOString());
-        console.log("NOW          =", Math.floor(Date.now() / 1000), new Date().toISOString());
+        console.log(
+            "NOW          =",
+            Math.floor(Date.now() / 1000),
+            new Date().toISOString()
+        );
+
         const now = Math.floor(Date.now() / 1000);
 
         // Check if times changed
@@ -463,36 +465,6 @@ export class AuctionRoom extends DurableObject {
             default: throw new Error(`Invalid listing type: ${listingType}`);
         }
     }
-
-    // private parseDuration(duration: string): { start: number; end: number } {
-    //     const [startStr, endStr] = duration.split(" to ").map(s => s.trim());
-
-    //     const parse = (s: string): number => {
-    //         const [datePart, timePart] = s.split(" ");
-    //         const [day, month, year] = datePart.split("/").map(Number);
-    //         const [hour, minute] = timePart.split(":").map(Number);
-
-    //         const result = Math.floor(
-    //             Date.UTC(year, month - 1, day, hour - 6, minute) / 1000
-    //         );
-
-    //         console.log("📅 DURABLE PARSE");
-    //         console.log("RAW =", s);
-    //         console.log("TS =", result);
-    //         console.log("ISO =", new Date(result * 1000).toISOString());
-
-    //         return result;
-    //     };
-
-    //     return {
-    //         start: parse(startStr),
-    //         end: parse(endStr),
-    //     };
-    // }
-
-    // ══════════════════════════════════════════════════════════════════════════════
-    // SCHEDULED ALARMS
-    // ══════════════════════════════════════════════════════════════════════════════
 
     private async scheduleStatusTransitions(): Promise<void> {
         if (!this.auctionState) return;

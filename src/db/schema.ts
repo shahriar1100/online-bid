@@ -26,6 +26,7 @@ export const real_estate_listings = sqliteTable("real_estate_listings", {
 
   auction_start_at: integer("auction_start_at"),
   auction_end_at: integer("auction_end_at"),
+  auction_timezone: text("auction_timezone").notNull().default("America/Chicago"),
 
   description: text("description").notNull(),
   media: text("media").$type<string | null>(),            // JSON string of file metadata / URLs
